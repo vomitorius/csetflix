@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450" viewBox="0 0 300 450">
+  <rect width="300" height="450" fill="#2a303c" />
+  <text x="150" y="225" font-family="Arial" font-size="24" fill="#ffffff" text-anchor="middle">No Image Available</text>
+  <path d="M150 150 L180 120 L210 150 L180 180 Z" fill="none" stroke="#dc2626" stroke-width="5" />
+  <path d="M120 150 L90 120 L60 150 L90 180 Z" fill="none" stroke="#dc2626" stroke-width="5" />
+  <path d="M150 180 L150 240" stroke="#dc2626" stroke-width="5" />
+  <path d="M120 270 L180 270" stroke="#dc2626" stroke-width="5" />
+</svg>
