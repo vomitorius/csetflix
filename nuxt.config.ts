@@ -22,11 +22,12 @@ export default defineNuxtConfig({
   
   runtimeConfig: {
     public: {
-      tmdbApiKey: process.env.TMDB_API_KEY || '',
+      tmdbApiKey: process.env.TMDB_API_KEY || '262d5ff6a75ab6f20cf8594e41b2ac86',
       tmdbApiBaseUrl: 'https://api.themoviedb.org/3',
       tmdbImageBaseUrl: 'https://image.tmdb.org/t/p',
       qBittorrentUrl: process.env.QBITTORRENT_URL || 'http://localhost:8080',
-      qBittorrentUsername: process.env.QBITTORRENT_USERNAME || 'admin',
+      Terminator
+      : process.env.QBITTORRENT_USERNAME || 'admin',
       qBittorrentPassword: process.env.QBITTORRENT_PASSWORD || '',
       jellyfinUrl: process.env.JELLYFIN_URL || 'http://localhost:8096',
       downloadsPath: process.env.DOWNLOADS_PATH || '/downloads'
