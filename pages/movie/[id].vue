@@ -54,6 +54,22 @@
               </div>
             </div>
             
+            <!-- Movie Trailer Section -->
+            <div v-if="trailerKey" class="card bg-neutral-800 mb-8">
+              <div class="card-body">
+                <h2 class="card-title text-xl mb-2">Trailer</h2>
+                <div class="relative pb-[56.25%] h-0">
+                  <iframe 
+                    :src="`https://www.youtube.com/embed/${trailerKey}`" 
+                    class="absolute top-0 left-0 w-full h-full rounded-lg"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen
+                  ></iframe>
+                </div>
+              </div>
+            </div>
+            
             <div class="card bg-neutral-800 mb-8">
               <div class="card-body">
                 <h2 class="card-title text-xl mb-2">Download Options</h2>
@@ -88,13 +104,14 @@
                         <td class="font-bold">Genres</td>
                         <td>
                           <div class="flex flex-wrap gap-1">
-                            <span 
+                            <NuxtLink 
                               v-for="genre in movie.genres" 
-                              :key="genre.id" 
-                              class="badge badge-outline"
+                              :key="genre.id"
+                              :to="`/genres?id=${genre.id}`"
+                              class="badge badge-outline hover:bg-red-600 hover:text-white hover:border-red-700 cursor-pointer transition-colors duration-200"
                             >
                               {{ genre.name }}
-                            </span>
+                            </NuxtLink>
                           </div>
                         </td>
                       </tr>
@@ -109,6 +126,38 @@
             </div>
           </div>
         </div>
+        
+        <!-- Related Movies Section -->
+        <div class="mt-12 mb-8">
+          <h2 class="text-2xl md:text-3xl font-bold mb-6">
+            <span class="text-red-600">Related</span> Movies
+          </h2>
+          
+          <div v-if="loadingRelated" class="flex justify-center my-8">
+            <span class="loading loading-spinner loading-lg text-red-600"></span>
+          </div>
+          <div v-else-if="relatedError" class="alert alert-error shadow-lg mb-4">
+            <div>
+              <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{{ relatedError }}</span>
+            </div>
+          </div>
+          <div v-else-if="relatedMovies.length === 0" class="text-center my-8 py-8 bg-neutral-800/50 rounded-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-neutral-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+            </svg>
+            <p class="text-lg text-neutral-400">No related movies found</p>
+          </div>
+          <div v-else class="relative">
+            <div class="flex overflow-x-auto pb-6 scrollbar-hide snap-x snap-mandatory">
+              <div v-for="relatedMovie in relatedMovies" :key="relatedMovie.id" class="snap-start w-[180px] md:w-[220px] flex-shrink-0 px-2">
+                <MovieCard :movie="relatedMovie" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -116,6 +165,7 @@
 
 <script setup lang="ts">
 import axios from 'axios'
+import type { Movie } from '~/types/movie'
 
 // Define MovieDetail interface inline instead of importing it
 interface MovieDetail {
@@ -139,6 +189,12 @@ const movieId = computed(() => route.params.id as string)
 const movie = ref<MovieDetail>({} as MovieDetail)
 const loading = ref(true)
 const error = ref<string | null>(null)
+const trailerKey = ref<string | null>(null)
+
+// Related movies state
+const relatedMovies = ref<Movie[]>([])
+const loadingRelated = ref(true)
+const relatedError = ref<string | null>(null)
 
 const posterUrl = computed(() => {
   if (!movie.value.poster_path) return '/no-poster.jpg'
@@ -180,6 +236,76 @@ function downloadMovie() {
   router.push(`/download/${movie.value.id}`)
 }
 
+async function fetchRelatedMovies(movieId: string) {
+  loadingRelated.value = true
+  relatedError.value = null
+  
+  try {
+    const response = await axios.get(`${config.public.tmdbApiBaseUrl}/movie/${movieId}/similar`, {
+      params: {
+        api_key: config.public.tmdbApiKey,
+        language: 'en-US',
+        page: 1
+      }
+    })
+    
+    // Get first 10 related movies with posters
+    relatedMovies.value = response.data.results
+      .filter((movie: Movie) => movie.poster_path)
+      .slice(0, 10)
+  } catch (err: any) {
+    relatedError.value = "Failed to load related movies"
+    console.error('Error fetching related movies:', err)
+  } finally {
+    loadingRelated.value = false
+  }
+}
+
+async function fetchTrailer() {
+  try {
+    const youtubeApiKey = 'AIzaSyBvjdSskE5mjasc3Ptit5k_ZACwxVPWCNU'
+    
+    // First try to get the trailer from TMDB videos endpoint
+    const tmdbResponse = await axios.get(`${config.public.tmdbApiBaseUrl}/movie/${movieId.value}/videos`, {
+      params: {
+        api_key: config.public.tmdbApiKey
+      }
+    })
+    
+    const videos = tmdbResponse.data.results || []
+    
+    // Look for an official trailer
+    const trailer = videos.find((video: any) => 
+      (video.type === 'Trailer' || video.type === 'Teaser') && 
+      video.site === 'YouTube'
+    )
+    
+    if (trailer) {
+      trailerKey.value = trailer.key
+      return
+    }
+    
+    // If no trailer found in TMDB, try YouTube API directly
+    const query = `${movie.value.title} ${releaseYear.value} trailer official`
+    const youtubeResponse = await axios.get('https://www.googleapis.com/youtube/v3/search', {
+      params: {
+        part: 'snippet',
+        maxResults: 1,
+        q: query,
+        type: 'video',
+        videoEmbeddable: true,
+        key: youtubeApiKey
+      }
+    })
+    
+    if (youtubeResponse.data.items && youtubeResponse.data.items.length > 0) {
+      trailerKey.value = youtubeResponse.data.items[0].id.videoId
+    }
+  } catch (err) {
+    console.error('Error fetching trailer:', err)
+  }
+}
+
 onMounted(async () => {
   try {
     loading.value = true
@@ -192,6 +318,12 @@ onMounted(async () => {
     })
     
     movie.value = response.data
+    
+    // Fetch trailer after movie details are loaded
+    await fetchTrailer()
+    
+    // Fetch related movies
+    await fetchRelatedMovies(movieId.value)
   } catch (err: any) {
     error.value = err.message || 'Failed to load movie'
   } finally {
@@ -199,3 +331,13 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+</style>

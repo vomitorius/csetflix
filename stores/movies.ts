@@ -12,14 +12,23 @@ export interface Movie {
   vote_average: number
 }
 
+export interface Genre {
+  id: number
+  name: string
+}
+
 export const useMoviesStore = defineStore('movies', {
   state: () => ({
     trendingMovies: [] as Movie[],
     popularMovies: [] as Movie[],
     searchResults: [] as Movie[],
+    genreMovies: [] as Movie[],
+    genres: [] as Genre[],
     selectedMovie: null as Movie | null,
     loading: false,
-    error: null as string | null
+    error: null as string | null,
+    currentGenreId: null as number | null,
+    totalGenrePages: 1
   }),
   
   actions: {
@@ -33,6 +42,28 @@ export const useMoviesStore = defineStore('movies', {
           }
         })
         this.trendingMovies = response.data.results
+      } catch (error: any) {
+        this.error = error.message
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async fetchTrendingPage(page: number) {
+      const config = useRuntimeConfig()
+      try {
+        this.loading = true
+        const response = await axios.get(`${config.public.tmdbApiBaseUrl}/trending/movie/week`, {
+          params: {
+            api_key: config.public.tmdbApiKey,
+            page
+          }
+        })
+        // Append new results without duplicates
+        const newMovies = response.data.results.filter((movie: Movie) => 
+          !this.trendingMovies.some(existingMovie => existingMovie.id === movie.id)
+        )
+        this.trendingMovies = [...this.trendingMovies, ...newMovies]
       } catch (error: any) {
         this.error = error.message
       } finally {
@@ -57,6 +88,11 @@ export const useMoviesStore = defineStore('movies', {
       }
     },
     
+    clearSearch() {
+      this.searchResults = []
+      this.error = null
+    },
+    
     async searchMovies(query: string) {
       if (!query) {
         this.searchResults = []
@@ -66,6 +102,7 @@ export const useMoviesStore = defineStore('movies', {
       const config = useRuntimeConfig()
       try {
         this.loading = true
+        this.error = null
         const response = await axios.get(`${config.public.tmdbApiBaseUrl}/search/movie`, {
           params: {
             api_key: config.public.tmdbApiKey,
@@ -73,6 +110,49 @@ export const useMoviesStore = defineStore('movies', {
           }
         })
         this.searchResults = response.data.results
+      } catch (error: any) {
+        this.error = error.message
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async fetchGenres() {
+      const config = useRuntimeConfig()
+      try {
+        this.loading = true
+        const response = await axios.get(`${config.public.tmdbApiBaseUrl}/genre/movie/list`, {
+          params: {
+            api_key: config.public.tmdbApiKey
+          }
+        })
+        this.genres = response.data.genres
+      } catch (error: any) {
+        this.error = error.message
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async fetchMoviesByGenre(genreId: number, page: number = 1) {
+      const config = useRuntimeConfig()
+      try {
+        this.loading = true
+        this.currentGenreId = genreId
+        
+        const response = await axios.get(`${config.public.tmdbApiBaseUrl}/discover/movie`, {
+          params: {
+            api_key: config.public.tmdbApiKey,
+            with_genres: genreId,
+            sort_by: 'popularity.desc,release_date.desc', // Show trending movies first, then by newest release date
+            'vote_count.gte': 50, // Ensure some minimum popularity
+            page,
+            include_adult: false
+          }
+        })
+        
+        this.genreMovies = response.data.results
+        this.totalGenrePages = response.data.total_pages
       } catch (error: any) {
         this.error = error.message
       } finally {
