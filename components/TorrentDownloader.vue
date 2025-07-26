@@ -9,6 +9,51 @@
       @close="closePlayer"
     />
 
+    <!-- Webtor Modal -->
+    <div v-if="showWebtorModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+      <div class="bg-gray-900 rounded-lg p-6 w-[95vw] h-[95vh] max-w-7xl overflow-hidden flex flex-col">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-semibold text-white">Webtor.io Stream</h3>
+          <button @click="closeWebtorModal" class="text-white hover:text-red-400 text-2xl">×</button>
+        </div>
+        
+        <!-- Magnet Link Copy Section -->
+        <div class="mb-4 p-4 bg-gray-800 rounded-lg flex-shrink-0">
+          <label class="block text-sm font-medium text-gray-300 mb-2">Magnet Link (Copy to Webtor.io):</label>
+          <div class="flex gap-2">
+            <input 
+              ref="magnetInput"
+              :value="selectedMagnetUri" 
+              readonly 
+              class="flex-1 bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 text-sm font-mono"
+              @click="selectMagnetText"
+            />
+            <button 
+              @click="copyMagnetToClipboard"
+              :class="{'bg-green-600': magnetCopied, 'bg-blue-600': !magnetCopied}"
+              class="px-4 py-2 rounded text-white hover:opacity-80 transition-colors"
+            >
+              {{ magnetCopied ? '✓ Copied' : '📋 Copy' }}
+            </button>
+          </div>
+          <p class="text-xs text-gray-400 mt-2">
+            Copy this magnet link and paste it into Webtor.io below
+          </p>
+        </div>
+        
+        <!-- Webtor iframe -->
+        <div class="flex-1 min-h-0">
+          <iframe
+            src="https://webtor.io"
+            class="w-full h-full border-0 rounded"
+            allowfullscreen
+            allow="autoplay; encrypted-media"
+          />
+        </div>
+      </div>
+    </div>
+
     <div v-if="torrentStore.loading && torrentStore.titleSearchLoading" class="flex justify-center my-8">
       <div class="flex flex-col items-center">
         <span class="loading loading-spinner loading-lg text-red-600 mb-2"></span>
@@ -90,6 +135,13 @@
                 </td>
                 <td>
                   <div class="flex gap-2">
+                    <button @click="openWebtor(torrent)" 
+                            class="btn btn-sm bg-purple-600 hover:bg-purple-700 border-purple-700 text-white">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 0l3-3m-3 3l3 3" />
+                      </svg>
+                      Webtor
+                    </button>
                     <button @click="streamTorrent(torrent)" 
                             class="btn btn-sm bg-green-600 hover:bg-green-700 border-green-700 text-white">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -159,6 +211,13 @@
                 <td>{{ torrent.leechers }}</td>
                 <td>
                   <div class="flex gap-2">
+                    <button @click="openWebtor(torrent)" 
+                            class="btn btn-sm bg-purple-600 hover:bg-purple-700 border-purple-700 text-white">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 0l3-3m-3 3l3 3" />
+                      </svg>
+                      Webtor
+                    </button>
                     <button @click="streamTorrent(torrent)" 
                             class="btn btn-sm bg-green-600 hover:bg-green-700 border-green-700 text-white">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -214,6 +273,11 @@ const torrentStore = useTorrentStore()
 // Torrent streaming state
 const showPlayer = ref(false)
 const selectedMagnetUri = ref('')
+
+// Webtor modal state
+const showWebtorModal = ref(false)
+const magnetCopied = ref(false)
+const magnetInput = ref<HTMLInputElement>()
 
 onMounted(() => {
   initSearch()
@@ -273,5 +337,73 @@ async function streamTorrent(torrent: any) {
 function closePlayer() {
   showPlayer.value = false
   selectedMagnetUri.value = ''
+}
+
+async function openWebtor(torrent: any) {
+  try {
+    // Get magnet URI from the torrent
+    let magnetUri = ''
+    
+    if (torrent.magnet) {
+      magnetUri = torrent.magnet
+    } else if (torrent.infoHash) {
+      magnetUri = `magnet:?xt=urn:btih:${torrent.infoHash}&dn=${encodeURIComponent(torrent.name)}`
+    } else {
+      // Try to get magnet link via the store
+      await torrentStore.getMagnetLink(torrent)
+      magnetUri = torrentStore.currentMagnet
+    }
+    
+    if (!magnetUri) {
+      throw new Error('Could not obtain magnet URI for this torrent')
+    }
+    
+    selectedMagnetUri.value = magnetUri
+    showWebtorModal.value = true
+    magnetCopied.value = false
+  } catch (error) {
+    console.error('Error opening Webtor:', error)
+    alert('Failed to get magnet link: ' + (error as Error).message)
+  }
+}
+
+function closeWebtorModal() {
+  showWebtorModal.value = false
+  selectedMagnetUri.value = ''
+  magnetCopied.value = false
+}
+
+function selectMagnetText() {
+  if (magnetInput.value) {
+    magnetInput.value.select()
+    magnetInput.value.setSelectionRange(0, 99999) // For mobile devices
+  }
+}
+
+async function copyMagnetToClipboard() {
+  try {
+    await navigator.clipboard.writeText(selectedMagnetUri.value)
+    magnetCopied.value = true
+    
+    // Reset copied status after 3 seconds
+    setTimeout(() => {
+      magnetCopied.value = false
+    }, 3000)
+  } catch (error) {
+    console.error('Failed to copy magnet link:', error)
+    // Fallback: select text for manual copy
+    selectMagnetText()
+    
+    // Try document.execCommand as fallback
+    try {
+      document.execCommand('copy')
+      magnetCopied.value = true
+      setTimeout(() => {
+        magnetCopied.value = false
+      }, 3000)
+    } catch (fallbackError) {
+      alert('Please manually copy the magnet link')
+    }
+  }
 }
 </script>
