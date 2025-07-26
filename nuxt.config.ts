@@ -26,8 +26,7 @@ export default defineNuxtConfig({
       tmdbApiBaseUrl: 'https://api.themoviedb.org/3',
       tmdbImageBaseUrl: 'https://image.tmdb.org/t/p',
       qBittorrentUrl: process.env.QBITTORRENT_URL || 'http://localhost:8080',
-      Terminator
-      : process.env.QBITTORRENT_USERNAME || 'admin',
+      qBittorrentUsername: process.env.QBITTORRENT_USERNAME || 'admin',
       qBittorrentPassword: process.env.QBITTORRENT_PASSWORD || '',
       jellyfinUrl: process.env.JELLYFIN_URL || 'http://localhost:8096',
       downloadsPath: process.env.DOWNLOADS_PATH || '/downloads'
@@ -47,5 +46,26 @@ export default defineNuxtConfig({
         xfwd: true
       }
     }
-  }
+  },
+
+  // Vite configuration for WebTorrent compatibility
+  vite: {
+    define: {
+      global: 'globalThis',
+    },
+    optimizeDeps: {
+      exclude: ['webtorrent']
+    },
+    resolve: {
+      alias: {
+        stream: 'stream-browserify',
+        path: 'path-browserify',
+        util: 'util',
+        crypto: 'crypto-browserify'
+      }
+    }
+  },
+
+  // Exclude WebTorrent from server-side rendering
+  ssr: true
 })

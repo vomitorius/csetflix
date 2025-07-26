@@ -27,6 +27,7 @@ export const useTorrentStore = defineStore('torrent', {
     authenticated: false,
     selectedTorrent: null as TorrentSearchResult | null,
     magnetLoading: false,
+    currentMagnet: '' as string,
     movieInfo: {
       title: '',
       year: '',
@@ -45,6 +46,7 @@ export const useTorrentStore = defineStore('torrent', {
       this.titleSearchError = null
       this.connectionError = false
       this.downloadSuccess = false
+      this.currentMagnet = ''
       this.movieInfo = {
         title: '',
         year: '',
@@ -339,7 +341,11 @@ export const useTorrentStore = defineStore('torrent', {
     
     async getMagnetLink(torrent: TorrentSearchResult) {
       try {
+        this.magnetLoading = true
+        this.selectedTorrent = torrent
+        
         if (torrent.magnetLink) {
+          this.currentMagnet = torrent.magnetLink
           return torrent.magnetLink
         }
         
@@ -347,6 +353,8 @@ export const useTorrentStore = defineStore('torrent', {
       } catch (error: any) {
         console.error('Error getting magnet link:', error)
         throw error
+      } finally {
+        this.magnetLoading = false
       }
     },
     
