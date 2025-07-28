@@ -23,6 +23,20 @@
         :style="{ backgroundImage: `url(${backdropUrl})` }"
       >
         <div class="absolute inset-0 bg-gradient-to-t from-neutral-900 to-transparent"></div>
+        
+        <!-- Back Button -->
+        <div class="absolute top-4 left-4 z-20">
+          <button 
+            @click="goBack"
+            class="btn btn-circle btn-ghost bg-black/50 hover:bg-black/70 text-white border-0 backdrop-blur-sm transition-all duration-200"
+            title="Go back"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        </div>
+        
         <div class="container mx-auto p-4 flex items-end h-full relative z-10">
           <div class="flex flex-col md:flex-row items-end md:items-center gap-6">
             <img 
@@ -373,6 +387,10 @@ function useDefaultPoster(event: Event) {
 
 function downloadMovie() {
   router.push(`/download/${movie.value.id}`)
+}
+
+function goBack() {
+  router.back()
 }
 
 function toggleShowAllImages() {
