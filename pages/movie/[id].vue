@@ -307,6 +307,12 @@ interface MovieDetail {
   vote_count: number
   genres: { id: number, name: string }[]
   runtime: number
+  belongs_to_collection?: {
+    id: number
+    name: string
+    poster_path: string
+    backdrop_path: string
+  }
 }
 
 // Define MovieImage interface for the gallery
@@ -480,18 +486,71 @@ async function fetchRelatedMovies(movieId: string) {
   relatedError.value = null
   
   try {
-    const response = await axios.get(`${config.public.tmdbApiBaseUrl}/movie/${movieId}/similar`, {
-      params: {
-        api_key: config.public.tmdbApiKey,
-        language: 'en-US',
-        page: 1
-      }
-    })
+    let collectionMovies: Movie[] = []
+    let relatedMoviesList: Movie[] = []
     
-    // Get first 10 related movies with posters
-    relatedMovies.value = response.data.results
-      .filter((movie: Movie) => movie.poster_path)
-      .slice(0, 10)
+    // First, check if this movie belongs to a collection
+    if (movie.value.belongs_to_collection?.id) {
+      try {
+        const collectionResponse = await axios.get(`${config.public.tmdbApiBaseUrl}/collection/${movie.value.belongs_to_collection.id}`, {
+          params: {
+            api_key: config.public.tmdbApiKey,
+            language: 'en-US'
+          }
+        })
+        
+        // Get movies from collection, excluding the current movie
+        collectionMovies = collectionResponse.data.parts
+          .filter((movie: Movie) => movie.id !== parseInt(movieId) && movie.poster_path)
+          .sort((a: Movie, b: Movie) => new Date(a.release_date).getTime() - new Date(b.release_date).getTime())
+      } catch (collectionErr) {
+        console.error('Error fetching collection movies:', collectionErr)
+      }
+    }
+    
+    // If we have collection movies, prioritize them
+    if (collectionMovies.length > 0) {
+      relatedMoviesList = [...collectionMovies]
+      
+      // If we don't have enough collection movies (less than 6), fill with similar movies
+      if (collectionMovies.length < 6) {
+        try {
+          const similarResponse = await axios.get(`${config.public.tmdbApiBaseUrl}/movie/${movieId}/similar`, {
+            params: {
+              api_key: config.public.tmdbApiKey,
+              language: 'en-US',
+              page: 1
+            }
+          })
+          
+          const similarMovies = similarResponse.data.results
+            .filter((movie: Movie) => movie.poster_path)
+            // Exclude movies already in collection
+            .filter((movie: Movie) => !collectionMovies.some(colMovie => colMovie.id === movie.id))
+            .slice(0, 10 - collectionMovies.length)
+          
+          relatedMoviesList = [...collectionMovies, ...similarMovies]
+        } catch (similarErr) {
+          console.error('Error fetching similar movies to supplement collection:', similarErr)
+          relatedMoviesList = collectionMovies
+        }
+      }
+    } else {
+      // Fall back to similar movies if no collection
+      const response = await axios.get(`${config.public.tmdbApiBaseUrl}/movie/${movieId}/similar`, {
+        params: {
+          api_key: config.public.tmdbApiKey,
+          language: 'en-US',
+          page: 1
+        }
+      })
+      
+      relatedMoviesList = response.data.results
+        .filter((movie: Movie) => movie.poster_path)
+    }
+    
+    // Limit to 10 movies total
+    relatedMovies.value = relatedMoviesList.slice(0, 10)
   } catch (err: any) {
     relatedError.value = "Failed to load related movies"
     console.error('Error fetching related movies:', err)
