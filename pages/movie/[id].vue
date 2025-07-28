@@ -23,6 +23,19 @@
         :style="{ backgroundImage: `url(${backdropUrl})` }"
       >
         <div class="absolute inset-0 bg-gradient-to-t from-neutral-900 to-transparent"></div>
+        
+        <!-- Back Button -->
+        <button 
+          @click="router.back()"
+          class="absolute top-4 left-4 z-20 btn btn-circle btn-ghost bg-black/50 hover:bg-black/70 text-white border-none transition-all duration-200"
+          aria-label="Go back to previous page"
+          title="Go back"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        
         <div class="container mx-auto p-4 flex items-end h-full relative z-10">
           <div class="flex flex-col md:flex-row items-end md:items-center gap-6">
             <img 
