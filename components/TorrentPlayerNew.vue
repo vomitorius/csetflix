@@ -116,7 +116,7 @@ watch(() => props.isVisible, async (visible) => {
     console.log('🚫 Player closed, cleaning up...')
     cleanup()
   }
-})
+}, { immediate: true })
 
 async function initializeStream() {
   console.log('🚀 Initializing stream...')
@@ -136,16 +136,17 @@ async function initializeStream() {
     
     loadingText.value = 'Creating embed link...'
     
-    // Use Webtor.io embed approach
-    const encodedMagnet = encodeURIComponent(props.magnetUri)
-    
     // Create embed URL for webtor.io
-    embedUrl.value = `https://webtor.io/web?magnet=${encodedMagnet}&lang=en&poster=&title=${encodeURIComponent(movieTitle.value || 'Movie')}`
+    const encodedMagnet = encodeURIComponent(props.magnetUri)
+    const encodedTitle = encodeURIComponent(movieTitle.value || 'Movie')
+    
+    // Build URL without empty parameters to avoid "wrong args provided" error
+    embedUrl.value = `https://webtor.io/web?magnet=${encodedMagnet}&lang=en&title=${encodedTitle}`
     
     console.log('🌊 Embed URL created:', embedUrl.value)
     
-    // Simulate loading time
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    // Simulate loading time (reduced for testing)
+    await new Promise(resolve => setTimeout(resolve, 1000))
     
     isLoading.value = false
     streamStatus.value = 'Ready'
