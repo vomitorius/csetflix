@@ -60,8 +60,17 @@
         <div v-else class="flex-1">
           <div 
             :id="playerId" 
-            class="webtor w-full h-full"
-          />
+            class="webtor w-full h-full bg-gray-900"
+            style="min-height: 500px;"
+          >
+            <!-- Fallback content while SDK loads -->
+            <div class="flex items-center justify-center h-full text-white">
+              <div class="text-center">
+                <div class="loading loading-spinner loading-lg text-red-600 mb-4"></div>
+                <p>Initializing Webtor player...</p>
+              </div>
+            </div>
+          </div>
         </div>
         
         <!-- Stream Info -->
@@ -225,25 +234,29 @@ async function initializeStream() {
     
     loadingText.value = 'Setting up player...'
     
-    // Wait for DOM to be ready and element to exist with retries
-    await nextTick()
+    // Create fallback URL for "Open in Webtor.io" button
+    const encodedMagnet = encodeURIComponent(props.magnetUri)
+    const encodedTitle = encodeURIComponent(movieTitle.value || 'Movie')
+    embedUrl.value = `https://webtor.io/web?magnet=${encodedMagnet}&lang=en&title=${encodedTitle}`
     
-    // Poll for the element to exist
-    const waitForElement = async (id: string, maxRetries = 10): Promise<HTMLElement> => {
-      for (let i = 0; i < maxRetries; i++) {
-        const element = document.getElementById(id)
-        if (element) {
-          console.log(`🎯 Player element found after ${i + 1} attempt(s):`, element)
-          return element
-        }
-        console.log(`⏳ Waiting for element ${id}, attempt ${i + 1}/${maxRetries}`)
-        await new Promise(resolve => setTimeout(resolve, 200))
-      }
-      throw new Error(`Player element with id "${id}" not found after ${maxRetries} attempts`)
-    }
+    // Use a shorter delay and then hide loading regardless
+    isLoading.value = false
     
-    const playerElement = await waitForElement(playerId.value)
+    // Wait a bit for DOM to be ready
+    setTimeout(async () => {
+      await setupWebtor()
+    }, 500)
     
+  } catch (err) {
+    console.error('❌ Failed to initialize stream:', err)
+    error.value = 'Failed to initialize Webtor player. This might be due to network issues or the torrent not being available.'
+    isLoading.value = false
+    streamStatus.value = 'Error'
+  }
+}
+
+async function setupWebtor() {
+  try {
     // Initialize Webtor player
     if (typeof window !== 'undefined' && (window as any).webtor) {
       const webtor = (window as any).webtor = (window as any).webtor || []
@@ -263,12 +276,10 @@ async function initializeStream() {
           switch (event) {
             case 'ready':
               streamStatus.value = 'Ready'
-              isLoading.value = false
               break
             case 'error':
               console.error('❌ Webtor player error:', data)
               error.value = data.message || 'Player error occurred'
-              isLoading.value = false
               streamStatus.value = 'Error'
               break
             case 'play':
@@ -287,28 +298,14 @@ async function initializeStream() {
       console.log('🔧 Player config:', playerConfig)
       webtor.push(playerConfig)
       
-      // Create fallback URL for "Open in Webtor.io" button
-      const encodedMagnet = encodeURIComponent(props.magnetUri)
-      const encodedTitle = encodeURIComponent(movieTitle.value || 'Movie')
-      embedUrl.value = `https://webtor.io/web?magnet=${encodedMagnet}&lang=en&title=${encodedTitle}`
-      
-      // Set a timeout to handle cases where the player doesn't respond
-      setTimeout(() => {
-        if (isLoading.value) {
-          console.log('⏰ Player setup timeout, considering ready')
-          isLoading.value = false
-          streamStatus.value = 'Ready'
-        }
-      }, 10000)
+      streamStatus.value = 'Ready'
       
     } else {
       throw new Error('Webtor SDK not available')
     }
-    
   } catch (err) {
-    console.error('❌ Failed to initialize stream:', err)
-    error.value = 'Failed to initialize Webtor player. This might be due to network issues or the torrent not being available.'
-    isLoading.value = false
+    console.error('❌ Failed to setup webtor:', err)
+    error.value = 'Failed to setup Webtor player'
     streamStatus.value = 'Error'
   }
 }
