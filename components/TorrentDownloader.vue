@@ -18,34 +18,26 @@
           <button @click="closeWebtorModal" class="text-white hover:text-red-400 text-2xl">×</button>
         </div>
         
-        <!-- Magnet Link Copy Section -->
+        <!-- Auto-stream Info Section -->
         <div class="mb-4 p-4 bg-gray-800 rounded-lg flex-shrink-0">
-          <label class="block text-sm font-medium text-gray-300 mb-2">Magnet Link (Copy to Webtor.io):</label>
-          <div class="flex gap-2">
-            <input 
-              ref="magnetInput"
-              :value="selectedMagnetUri" 
-              readonly 
-              class="flex-1 bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 text-sm font-mono"
-              @click="selectMagnetText"
-            />
-            <button 
-              @click="copyMagnetToClipboard"
-              :class="{'bg-green-600': magnetCopied, 'bg-blue-600': !magnetCopied}"
-              class="px-4 py-2 rounded text-white hover:opacity-80 transition-colors"
-            >
-              {{ magnetCopied ? '✓ Copied' : '📋 Copy' }}
-            </button>
+          <div class="flex items-center gap-2 mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span class="text-green-400 font-medium">Webtor.io Stream Ready</span>
           </div>
-          <p class="text-xs text-gray-400 mt-2">
-            Copy this magnet link and paste it into Webtor.io below
+          <p class="text-sm text-gray-300">
+            The magnet link has been automatically loaded into Webtor.io. The stream should start automatically below.
           </p>
+          <div class="mt-2 p-2 bg-gray-700 rounded text-xs text-gray-400 font-mono truncate">
+            {{ selectedMagnetUri }}
+          </div>
         </div>
         
         <!-- Webtor iframe -->
         <div class="flex-1 min-h-0">
           <iframe
-            src="https://webtor.io"
+            :src="webtorUrl"
             class="w-full h-full border-0 rounded"
             allowfullscreen
             allow="autoplay; encrypted-media"
@@ -278,6 +270,7 @@ const selectedMagnetUri = ref('')
 const showWebtorModal = ref(false)
 const magnetCopied = ref(false)
 const magnetInput = ref<HTMLInputElement>()
+const webtorUrl = ref('')
 
 onMounted(() => {
   initSearch()
@@ -313,6 +306,8 @@ async function streamTorrent(torrent: any) {
     
     if (torrent.magnet) {
       magnetUri = torrent.magnet
+    } else if (torrent.magnetLink) {
+      magnetUri = torrent.magnetLink
     } else if (torrent.infoHash) {
       magnetUri = `magnet:?xt=urn:btih:${torrent.infoHash}&dn=${encodeURIComponent(torrent.name)}`
     } else {
@@ -346,6 +341,8 @@ async function openWebtor(torrent: any) {
     
     if (torrent.magnet) {
       magnetUri = torrent.magnet
+    } else if (torrent.magnetLink) {
+      magnetUri = torrent.magnetLink
     } else if (torrent.infoHash) {
       magnetUri = `magnet:?xt=urn:btih:${torrent.infoHash}&dn=${encodeURIComponent(torrent.name)}`
     } else {
@@ -357,6 +354,17 @@ async function openWebtor(torrent: any) {
     if (!magnetUri) {
       throw new Error('Could not obtain magnet URI for this torrent')
     }
+    
+    // Extract movie title from magnet URI or torrent name
+    let movieTitle = torrent.name || 'Movie'
+    const dnMatch = magnetUri.match(/dn=([^&]+)/)
+    if (dnMatch) {
+      movieTitle = decodeURIComponent(dnMatch[1].replace(/\+/g, ' '))
+    }
+    
+    // Construct webtor.io URL with magnet parameter (similar to TorrentPlayerNew.vue)
+    const encodedMagnet = encodeURIComponent(magnetUri)
+    webtorUrl.value = `https://webtor.io/web?magnet=${encodedMagnet}&lang=en&poster=&title=${encodeURIComponent(movieTitle)}`
     
     selectedMagnetUri.value = magnetUri
     showWebtorModal.value = true
@@ -371,6 +379,7 @@ function closeWebtorModal() {
   showWebtorModal.value = false
   selectedMagnetUri.value = ''
   magnetCopied.value = false
+  webtorUrl.value = ''
 }
 
 function selectMagnetText() {
