@@ -364,7 +364,10 @@ async function openWebtor(torrent: any) {
     
     // Construct webtor.io URL with magnet parameter (similar to TorrentPlayerNew.vue)
     const encodedMagnet = encodeURIComponent(magnetUri)
-    webtorUrl.value = `https://webtor.io/web?magnet=${encodedMagnet}&lang=en&poster=&title=${encodeURIComponent(movieTitle)}`
+    const encodedTitle = encodeURIComponent(movieTitle)
+    
+    // Build URL without empty parameters to avoid "wrong args provided" error
+    webtorUrl.value = `https://webtor.io/web?magnet=${encodedMagnet}&lang=en&title=${encodedTitle}`
     
     selectedMagnetUri.value = magnetUri
     showWebtorModal.value = true
