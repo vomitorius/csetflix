@@ -15,13 +15,13 @@
             @click="openWebtor" 
             class="btn btn-primary"
           >
-            Test Webtor.io (Fixed)
+            Test New Webtor SDK
           </button>
           <button 
             @click="openWebtorOld" 
             class="btn btn-error"
           >
-            Test Old Version (Broken)
+            Test Old iframe Method
           </button>
         </div>
       </div>
@@ -29,19 +29,31 @@
 
     <div class="card bg-base-200 shadow-lg">
       <div class="card-body">
-        <h2 class="card-title">URL Comparison</h2>
+        <h2 class="card-title">Webtor SDK vs Old Implementation</h2>
         
         <div class="mb-4">
-          <h3 class="font-semibold text-green-600">Fixed URL (without empty poster parameter):</h3>
+          <h3 class="font-semibold text-green-600">New: Using Official Webtor SDK</h3>
+          <p class="text-sm text-gray-600 mb-2">
+            Uses @webtor/embed-sdk-js for proper integration without "wrong args provided" errors.
+          </p>
           <div class="mockup-code">
-            <pre><code>{{ fixedUrl }}</code></pre>
+            <pre><code>// Uses official SDK with proper configuration
+webtor.push({
+  id: 'player',
+  magnet: '{{ testMagnetUri.substring(0, 60) }}...',
+  title: 'Indiana Jones...',
+  controls: true
+})</code></pre>
           </div>
         </div>
         
         <div class="mb-4">
-          <h3 class="font-semibold text-red-600">Old URL (with empty poster parameter):</h3>
+          <h3 class="font-semibold text-red-600">Old: Direct iframe embedding</h3>
+          <p class="text-sm text-gray-600 mb-2">
+            Direct iframe URLs that can cause "wrong args provided" errors.
+          </p>
           <div class="mockup-code">
-            <pre><code>{{ brokenUrl }}</code></pre>
+            <pre><code>{{ oldUrl.substring(0, 80) }}...</code></pre>
           </div>
         </div>
       </div>
@@ -65,16 +77,10 @@ const selectedMagnetUri = ref('')
 const showPlayer = ref(false)
 
 // Computed URLs for comparison
-const fixedUrl = computed(() => {
+const oldUrl = computed(() => {
   const encodedMagnet = encodeURIComponent(testMagnetUri.value)
   const encodedTitle = encodeURIComponent('Indiana Jones and the Temple of Doom (1984) 1080p bluray')
   return `https://webtor.io/web?magnet=${encodedMagnet}&lang=en&title=${encodedTitle}`
-})
-
-const brokenUrl = computed(() => {
-  const encodedMagnet = encodeURIComponent(testMagnetUri.value)
-  const encodedTitle = encodeURIComponent('Indiana Jones and the Temple of Doom (1984) 1080p bluray')
-  return `https://webtor.io/web?magnet=${encodedMagnet}&lang=en&poster=&title=${encodedTitle}`
 })
 
 function openWebtor() {
@@ -83,8 +89,8 @@ function openWebtor() {
 }
 
 function openWebtorOld() {
-  // Open the old broken URL in new tab for comparison
-  window.open(brokenUrl.value, '_blank')
+  // Open the old iframe URL in new tab for comparison
+  window.open(oldUrl.value, '_blank')
 }
 
 function closePlayer() {

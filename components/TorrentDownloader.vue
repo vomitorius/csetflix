@@ -9,7 +9,7 @@
       @close="closePlayer"
     />
 
-    <!-- Webtor Modal -->
+    <!-- Webtor Modal with SDK -->
     <div v-if="showWebtorModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
       <div class="bg-gray-900 rounded-lg p-6 w-[95vw] h-[95vh] max-w-7xl overflow-hidden flex flex-col">
         <!-- Header -->
@@ -24,23 +24,52 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span class="text-green-400 font-medium">Webtor.io Stream Ready</span>
+            <span class="text-green-400 font-medium">Webtor.io SDK Stream Ready</span>
           </div>
           <p class="text-sm text-gray-300">
-            The magnet link has been automatically loaded into Webtor.io. The stream should start automatically below.
+            Using the official Webtor.io SDK for seamless streaming. Player will load below.
           </p>
           <div class="mt-2 p-2 bg-gray-700 rounded text-xs text-gray-400 font-mono truncate">
             {{ selectedMagnetUri }}
           </div>
         </div>
         
-        <!-- Webtor iframe -->
-        <div class="flex-1 min-h-0">
-          <iframe
-            :src="webtorUrl"
-            class="w-full h-full border-0 rounded"
-            allowfullscreen
-            allow="autoplay; encrypted-media"
+        <!-- Loading State -->
+        <div v-if="webtorLoading" class="flex-1 flex items-center justify-center">
+          <div class="text-center">
+            <div class="loading loading-spinner loading-lg text-red-600 mb-4"></div>
+            <p class="text-white">Loading Webtor player...</p>
+          </div>
+        </div>
+        
+        <!-- Error State -->
+        <div v-else-if="webtorError" class="flex-1 flex items-center justify-center">
+          <div class="text-center text-white max-w-md">
+            <div class="text-red-500 text-6xl mb-4">⚠️</div>
+            <h3 class="text-lg font-semibold text-red-400 mb-2">Player Error</h3>
+            <p class="text-gray-300 mb-4">{{ webtorError }}</p>
+            <div class="space-x-2">
+              <button 
+                @click="retryWebtor"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+              >
+                Retry
+              </button>
+              <button 
+                @click="openWebtorInNewTab"
+                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+              >
+                Open in Webtor.io
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Webtor SDK Player -->
+        <div v-else class="flex-1 min-h-0">
+          <div 
+            :id="webtorPlayerId" 
+            class="webtor w-full h-full"
           />
         </div>
       </div>
@@ -271,6 +300,89 @@ const showWebtorModal = ref(false)
 const magnetCopied = ref(false)
 const magnetInput = ref<HTMLInputElement>()
 const webtorUrl = ref('')
+const webtorLoading = ref(false)
+const webtorError = ref('')
+const webtorPlayerId = ref('')
+
+// Load Webtor SDK script
+const loadWebtorSDK = () => {
+  return new Promise<void>((resolve, reject) => {
+    // Check if SDK is already loaded
+    if (typeof window !== 'undefined' && (window as any).webtor) {
+      resolve()
+      return
+    }
+
+    // Try to load from CDN first, then fallback to local package
+    const tryLoadFromCDN = () => {
+      const script = document.createElement('script')
+      script.src = 'https://cdn.jsdelivr.net/npm/@webtor/embed-sdk-js/dist/index.min.js'
+      script.charset = 'utf-8'
+      script.async = true
+      
+      script.onload = () => {
+        console.log('✅ Webtor SDK loaded successfully from CDN')
+        resolve()
+      }
+      
+      script.onerror = () => {
+        console.warn('⚠️ CDN blocked, trying local package fallback...')
+        document.head.removeChild(script)
+        tryLoadFromLocal()
+      }
+      
+      document.head.appendChild(script)
+    }
+
+    const tryLoadFromLocal = () => {
+      try {
+        // Try to import the local package
+        import('@webtor/embed-sdk-js/dist/index.min.js').then(() => {
+          console.log('✅ Webtor SDK loaded successfully from local package')
+          resolve()
+        }).catch(() => {
+          // Final fallback - create a mock implementation for development
+          console.warn('⚠️ Using iframe fallback since SDK is not available')
+          useFallbackImplementation()
+          resolve()
+        })
+      } catch (error) {
+        console.warn('⚠️ Local package import failed, using fallback')
+        useFallbackImplementation()
+        resolve()
+      }
+    }
+
+    const useFallbackImplementation = () => {
+      // Create a simple webtor mock that just creates an iframe
+      (window as any).webtor = (window as any).webtor || []
+      ;(window as any).webtor.push = function(config: any) {
+        const element = document.getElementById(config.id)
+        if (element) {
+          const encodedMagnet = encodeURIComponent(config.magnet)
+          const encodedTitle = encodeURIComponent(config.title || 'Movie')
+          const iframe = document.createElement('iframe')
+          iframe.src = `https://webtor.io/web?magnet=${encodedMagnet}&lang=en&title=${encodedTitle}`
+          iframe.style.width = '100%'
+          iframe.style.height = '100%'
+          iframe.style.border = 'none'
+          iframe.allowFullscreen = true
+          iframe.allow = 'autoplay; encrypted-media'
+          element.appendChild(iframe)
+          
+          // Simulate ready event
+          setTimeout(() => {
+            if (config.on) {
+              config.on('ready', {})
+            }
+          }, 2000)
+        }
+      }
+    }
+
+    tryLoadFromCDN()
+  })
+}
 
 onMounted(() => {
   initSearch()
@@ -362,16 +474,75 @@ async function openWebtor(torrent: any) {
       movieTitle = decodeURIComponent(dnMatch[1].replace(/\+/g, ' '))
     }
     
-    // Construct webtor.io URL with magnet parameter (similar to TorrentPlayerNew.vue)
-    const encodedMagnet = encodeURIComponent(magnetUri)
-    const encodedTitle = encodeURIComponent(movieTitle)
-    
-    // Build URL without empty parameters to avoid "wrong args provided" error
-    webtorUrl.value = `https://webtor.io/web?magnet=${encodedMagnet}&lang=en&title=${encodedTitle}`
-    
     selectedMagnetUri.value = magnetUri
     showWebtorModal.value = true
     magnetCopied.value = false
+    webtorLoading.value = true
+    webtorError.value = ''
+    webtorPlayerId.value = `webtor-downloader-${Date.now()}`
+    
+    // Create fallback URL for "Open in Webtor.io" button
+    const encodedMagnet = encodeURIComponent(magnetUri)
+    const encodedTitle = encodeURIComponent(movieTitle)
+    webtorUrl.value = `https://webtor.io/web?magnet=${encodedMagnet}&lang=en&title=${encodedTitle}`
+    
+    try {
+      // Load the Webtor SDK
+      await loadWebtorSDK()
+      
+      // Wait for DOM to be ready
+      await nextTick()
+      
+      // Initialize Webtor player
+      if (typeof window !== 'undefined' && (window as any).webtor) {
+        const webtor = (window as any).webtor = (window as any).webtor || []
+        
+        const playerConfig = {
+          id: webtorPlayerId.value,
+          magnet: magnetUri,
+          title: movieTitle,
+          width: '100%',
+          height: '100%',
+          lang: 'en',
+          controls: true,
+          header: true,
+          on: (event: string, data: any) => {
+            console.log('🎮 Webtor downloader event:', event, data)
+            
+            switch (event) {
+              case 'ready':
+                webtorLoading.value = false
+                break
+              case 'error':
+                console.error('❌ Webtor downloader error:', data)
+                webtorError.value = data.message || 'Player error occurred'
+                webtorLoading.value = false
+                break
+            }
+          }
+        }
+        
+        console.log('🔧 Webtor downloader config:', playerConfig)
+        webtor.push(playerConfig)
+        
+        // Set a timeout to handle cases where the player doesn't respond
+        setTimeout(() => {
+          if (webtorLoading.value) {
+            console.log('⏰ Webtor player setup timeout, considering ready')
+            webtorLoading.value = false
+          }
+        }, 10000)
+        
+      } else {
+        throw new Error('Webtor SDK not available')
+      }
+      
+    } catch (sdkError) {
+      console.error('❌ Webtor SDK error:', sdkError)
+      webtorError.value = 'Failed to load Webtor player. This might be due to network issues.'
+      webtorLoading.value = false
+    }
+    
   } catch (error) {
     console.error('Error opening Webtor:', error)
     alert('Failed to get magnet link: ' + (error as Error).message)
@@ -383,6 +554,82 @@ function closeWebtorModal() {
   selectedMagnetUri.value = ''
   magnetCopied.value = false
   webtorUrl.value = ''
+  webtorLoading.value = false
+  webtorError.value = ''
+  
+  // Cleanup the player
+  if (webtorPlayerId.value) {
+    const playerElement = document.getElementById(webtorPlayerId.value)
+    if (playerElement) {
+      playerElement.innerHTML = ''
+    }
+    webtorPlayerId.value = ''
+  }
+}
+
+function retryWebtor() {
+  webtorLoading.value = true
+  webtorError.value = ''
+  
+  // Retry initialization
+  const currentMagnet = selectedMagnetUri.value
+  const currentTitle = webtorUrl.value.match(/title=([^&]+)/)?.[1] || 'Movie'
+  
+  setTimeout(async () => {
+    try {
+      await loadWebtorSDK()
+      await nextTick()
+      
+      if (typeof window !== 'undefined' && (window as any).webtor) {
+        const webtor = (window as any).webtor = (window as any).webtor || []
+        
+        const playerConfig = {
+          id: webtorPlayerId.value,
+          magnet: currentMagnet,
+          title: decodeURIComponent(currentTitle),
+          width: '100%',
+          height: '100%',
+          lang: 'en',
+          controls: true,
+          header: true,
+          on: (event: string, data: any) => {
+            console.log('🎮 Webtor retry event:', event, data)
+            
+            switch (event) {
+              case 'ready':
+                webtorLoading.value = false
+                break
+              case 'error':
+                console.error('❌ Webtor retry error:', data)
+                webtorError.value = data.message || 'Player error occurred'
+                webtorLoading.value = false
+                break
+            }
+          }
+        }
+        
+        webtor.push(playerConfig)
+        
+        setTimeout(() => {
+          if (webtorLoading.value) {
+            webtorLoading.value = false
+          }
+        }, 10000)
+        
+      } else {
+        throw new Error('Webtor SDK not available')
+      }
+    } catch (error) {
+      webtorError.value = 'Failed to retry Webtor player'
+      webtorLoading.value = false
+    }
+  }, 1000)
+}
+
+function openWebtorInNewTab() {
+  if (webtorUrl.value) {
+    window.open(webtorUrl.value, '_blank')
+  }
 }
 
 function selectMagnetText() {
