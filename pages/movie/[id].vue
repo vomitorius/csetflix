@@ -143,14 +143,22 @@
             
             <div class="card bg-neutral-800 mb-8">
               <div class="card-body">
-                <h2 class="card-title text-xl mb-2">Download Options</h2>
-                <p class="mb-4">Start downloading "{{ movie.title }}" now:</p>
-                <button @click="downloadMovie" class="btn btn-primary">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Find Download Options
-                </button>
+                <h2 class="card-title text-xl mb-2">Watch Now</h2>
+                <p class="mb-4">Stream "{{ movie.title }}" instantly:</p>
+                <div class="flex gap-3 flex-wrap">
+                  <button @click="watchMovie" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m2-7a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Watch
+                  </button>
+                  <button @click="downloadMovie" class="btn btn-outline btn-secondary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download Options
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -288,6 +296,14 @@
       :base-url="config.public.tmdbImageBaseUrl"
       :initial-index="selectedImageIndex"
     />
+    
+    <!-- Auto Stream Player -->
+    <AutoStreamPlayer
+      v-model="showStreamPlayer"
+      :movie-title="movie.title"
+      :is-visible="showStreamPlayer"
+      @close="closeStreamPlayer"
+    />
   </div>
 </template>
 
@@ -379,6 +395,9 @@ const showAllImages = ref(false)
 const showGallery = ref(false)
 const selectedImageIndex = ref(0)
 
+// Auto Stream Player state
+const showStreamPlayer = ref(false)
+
 // Display limited images initially
 const displayedImages = computed(() => {
   return showAllImages.value 
@@ -393,6 +412,16 @@ function useDefaultPoster(event: Event) {
 
 function downloadMovie() {
   router.push(`/download/${movie.value.id}`)
+}
+
+function watchMovie() {
+  console.log('🎬 Starting watch for:', movie.value.title)
+  showStreamPlayer.value = true
+}
+
+function closeStreamPlayer() {
+  console.log('🚪 Closing stream player')
+  showStreamPlayer.value = false
 }
 
 function goBack() {
