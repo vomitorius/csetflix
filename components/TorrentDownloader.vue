@@ -34,43 +34,42 @@
           </div>
         </div>
         
-        <!-- Loading State -->
-        <div v-if="webtorLoading" class="flex-1 flex items-center justify-center">
-          <div class="text-center">
-            <div class="loading loading-spinner loading-lg text-red-600 mb-4"></div>
-            <p class="text-white">Loading Webtor player...</p>
-          </div>
-        </div>
-        
-        <!-- Error State -->
-        <div v-else-if="webtorError" class="flex-1 flex items-center justify-center">
-          <div class="text-center text-white max-w-md">
-            <div class="text-red-500 text-6xl mb-4">⚠️</div>
-            <h3 class="text-lg font-semibold text-red-400 mb-2">Player Error</h3>
-            <p class="text-gray-300 mb-4">{{ webtorError }}</p>
-            <div class="space-x-2">
-              <button 
-                @click="retryWebtor"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-              >
-                Retry
-              </button>
-              <button 
-                @click="openWebtorInNewTab"
-                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-              >
-                Open in Webtor.io
-              </button>
-            </div>
-          </div>
-        </div>
-        
         <!-- Webtor SDK Player -->
-        <div v-else class="flex-1 min-h-0">
+        <div class="flex-1 min-h-0 relative">
           <div 
             :id="webtorPlayerId" 
             class="webtor w-full h-full"
+            :class="{ 'opacity-0': webtorLoading || webtorError }"
           />
+          <!-- Loading overlay when loading -->
+          <div v-if="webtorLoading" class="absolute inset-0 flex items-center justify-center bg-gray-900">
+            <div class="text-center">
+              <div class="loading loading-spinner loading-lg text-red-600 mb-4"></div>
+              <p class="text-white">Loading Webtor player...</p>
+            </div>
+          </div>
+          <!-- Error overlay when error -->
+          <div v-else-if="webtorError" class="absolute inset-0 flex items-center justify-center bg-gray-900">
+            <div class="text-center text-white max-w-md">
+              <div class="text-red-500 text-6xl mb-4">⚠️</div>
+              <h3 class="text-lg font-semibold text-red-400 mb-2">Player Error</h3>
+              <p class="text-gray-300 mb-4">{{ webtorError }}</p>
+              <div class="space-x-2">
+                <button 
+                  @click="retryWebtor"
+                  class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+                >
+                  Retry
+                </button>
+                <button 
+                  @click="openWebtorInNewTab"
+                  class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                >
+                  Open in Webtor.io
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
