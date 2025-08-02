@@ -10,10 +10,10 @@
     />
 
     <!-- Webtor Modal with SDK -->
-    <div v-if="showWebtorModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div class="bg-gray-900 rounded-lg p-6 w-[95vw] h-[95vh] max-w-7xl overflow-auto flex flex-col webtor-modal">
+    <div v-if="showWebtorModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" @click.self="closeWebtorModal">
+      <div class="bg-gray-900 rounded-lg p-6 w-[95vw] h-[95vh] max-w-7xl overflow-auto flex flex-col webtor-modal" @click.stop>
         <!-- Header -->
-        <div class="flex justify-between items-center mb-4">
+        <div class="flex justify-between items-center mb-4 flex-shrink-0">
           <h3 class="text-xl font-semibold text-white">Webtor.io Stream</h3>
           <button @click="closeWebtorModal" class="text-white hover:text-red-400 text-2xl">×</button>
         </div>
@@ -40,17 +40,18 @@
             :id="webtorPlayerId" 
             class="webtor w-full h-full min-h-[400px]"
             :class="{ 'opacity-0': webtorLoading || webtorError }"
+            style="touch-action: auto; pointer-events: auto;"
           />
           <!-- Loading overlay when loading -->
-          <div v-if="webtorLoading" class="absolute inset-0 flex items-center justify-center bg-gray-900">
-            <div class="text-center">
+          <div v-if="webtorLoading" class="absolute inset-0 flex items-center justify-center bg-gray-900 pointer-events-none">
+            <div class="text-center pointer-events-auto">
               <div class="loading loading-spinner loading-lg text-red-600 mb-4"></div>
               <p class="text-white">Loading Webtor player...</p>
             </div>
           </div>
           <!-- Error overlay when error -->
-          <div v-else-if="webtorError" class="absolute inset-0 flex items-center justify-center bg-gray-900">
-            <div class="text-center text-white max-w-md">
+          <div v-else-if="webtorError" class="absolute inset-0 flex items-center justify-center bg-gray-900 pointer-events-none">
+            <div class="text-center text-white max-w-md pointer-events-auto">
               <div class="text-red-500 text-6xl mb-4">⚠️</div>
               <h3 class="text-lg font-semibold text-red-400 mb-2">Player Error</h3>
               <p class="text-gray-300 mb-4">{{ webtorError }}</p>
@@ -365,8 +366,13 @@ const loadWebtorSDK = () => {
           iframe.style.width = '100%'
           iframe.style.height = '100%'
           iframe.style.border = 'none'
+          iframe.style.touchAction = 'auto'
+          iframe.style.pointerEvents = 'auto'
           iframe.allowFullscreen = true
-          iframe.allow = 'autoplay; encrypted-media'
+          iframe.allow = 'autoplay; encrypted-media; gyroscope; accelerometer; picture-in-picture; fullscreen'
+          // Expand sandbox permissions for touch interactions
+          iframe.sandbox = 'allow-same-origin allow-scripts allow-popups allow-forms allow-pointer-lock allow-top-navigation allow-modals'
+          element.innerHTML = '' // Clear any existing content
           element.appendChild(iframe)
           
           // Simulate ready event
@@ -687,10 +693,19 @@ async function copyMagnetToClipboard() {
   }
 }
 
-/* Ensure webtor iframe can be scrolled */
+/* Ensure webtor iframe can be scrolled and receive touch events */
 .webtor {
   /* Allow content to be scrollable */
   overflow: auto !important;
   -webkit-overflow-scrolling: touch;
+  /* Ensure touch events reach the iframe */
+  touch-action: auto !important;
+  pointer-events: auto !important;
+}
+
+.webtor iframe {
+  /* Ensure iframe receives touch events */
+  touch-action: auto !important;
+  pointer-events: auto !important;
 }
 </style>

@@ -1,10 +1,10 @@
 <!-- Updated to use Webtor SDK -->
 <template>
-  <div v-if="isVisible" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-    <div class="w-full h-full max-w-6xl max-h-screen p-4 overflow-auto webtor-player-modal">
+  <div v-if="isVisible" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50" @click.self="closePlayer">
+    <div class="w-full h-full max-w-6xl max-h-screen p-4 overflow-auto webtor-player-modal" @click.stop>
       <div class="bg-black rounded-lg overflow-auto h-full flex flex-col min-h-[500px]">
         <!-- Header -->
-        <div class="flex justify-between items-center p-4 bg-gray-800">
+        <div class="flex justify-between items-center p-4 bg-gray-800 flex-shrink-0">
           <h3 class="text-white text-lg font-semibold">
             {{ movieTitle || 'Torrent Player' }}
           </h3>
@@ -17,8 +17,8 @@
         </div>
         
         <!-- Loading State -->
-        <div v-if="isLoading" class="flex-1 flex items-center justify-center">
-          <div class="text-center text-white">
+        <div v-if="isLoading" class="flex-1 flex items-center justify-center pointer-events-none">
+          <div class="text-center text-white pointer-events-auto">
             <div class="loading loading-spinner loading-lg text-red-600 mb-4"></div>
             <p class="text-lg mb-2">{{ loadingText }}</p>
             <p class="text-sm text-gray-400 mt-2">
@@ -28,8 +28,8 @@
         </div>
         
         <!-- Error State -->
-        <div v-else-if="error" class="flex-1 flex items-center justify-center">
-          <div class="text-center text-white max-w-md">
+        <div v-else-if="error" class="flex-1 flex items-center justify-center pointer-events-none">
+          <div class="text-center text-white max-w-md pointer-events-auto">
             <div class="text-red-500 text-6xl mb-4">⚠️</div>
             <h3 class="text-lg font-semibold text-red-400 mb-2">Stream Error</h3>
             <p class="text-gray-300 mb-4">{{ error }}</p>
@@ -61,7 +61,7 @@
           <div 
             :id="playerId" 
             class="webtor w-full h-full bg-gray-900 min-h-[400px]"
-            style="min-height: 500px;"
+            style="min-height: 500px; touch-action: auto; pointer-events: auto;"
           >
             <!-- Fallback content while SDK loads -->
             <div class="flex items-center justify-center h-full text-white">
@@ -176,9 +176,12 @@ const loadWebtorSDK = () => {
           iframe.style.width = '100%'
           iframe.style.height = '100%'
           iframe.style.border = 'none'
+          iframe.style.touchAction = 'auto'
+          iframe.style.pointerEvents = 'auto'
           iframe.allowFullscreen = true
-          iframe.allow = 'autoplay; encrypted-media'
-          iframe.sandbox = 'allow-same-origin allow-scripts allow-popups allow-forms'
+          iframe.allow = 'autoplay; encrypted-media; gyroscope; accelerometer; picture-in-picture; fullscreen'
+          // Expand sandbox permissions for touch interactions
+          iframe.sandbox = 'allow-same-origin allow-scripts allow-popups allow-forms allow-pointer-lock allow-top-navigation allow-modals'
           element.innerHTML = '' // Clear any existing content
           element.appendChild(iframe)
           
@@ -384,10 +387,19 @@ onUnmounted(() => {
   }
 }
 
-/* Ensure webtor iframe can be scrolled */
+/* Ensure webtor iframe can be scrolled and receive touch events */
 .webtor {
   /* Allow content to be scrollable */
   overflow: auto !important;
   -webkit-overflow-scrolling: touch;
+  /* Ensure touch events reach the iframe */
+  touch-action: auto !important;
+  pointer-events: auto !important;
+}
+
+.webtor iframe {
+  /* Ensure iframe receives touch events */
+  touch-action: auto !important;
+  pointer-events: auto !important;
 }
 </style>
