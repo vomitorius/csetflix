@@ -1,8 +1,8 @@
 <!-- Updated to use Webtor SDK -->
 <template>
   <div v-if="isVisible" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-    <div class="w-full h-full max-w-6xl max-h-screen p-4">
-      <div class="bg-black rounded-lg overflow-hidden h-full flex flex-col">
+    <div class="w-full h-full max-w-6xl max-h-screen p-4 overflow-auto webtor-player-modal">
+      <div class="bg-black rounded-lg overflow-auto h-full flex flex-col min-h-[500px]">
         <!-- Header -->
         <div class="flex justify-between items-center p-4 bg-gray-800">
           <h3 class="text-white text-lg font-semibold">
@@ -57,10 +57,10 @@
         </div>
         
         <!-- Webtor SDK Player Container -->
-        <div v-else class="flex-1">
+        <div v-else class="flex-1 overflow-auto">
           <div 
             :id="playerId" 
-            class="webtor w-full h-full bg-gray-900"
+            class="webtor w-full h-full bg-gray-900 min-h-[400px]"
             style="min-height: 500px;"
           >
             <!-- Fallback content while SDK loads -->
@@ -355,3 +355,39 @@ onUnmounted(() => {
   cleanup()
 })
 </script>
+
+<style scoped>
+.webtor-player-modal {
+  /* Enable smooth scrolling on iOS Safari */
+  -webkit-overflow-scrolling: touch;
+  /* Ensure proper scroll behavior on mobile */
+  overscroll-behavior: contain;
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 768px) {
+  .webtor-player-modal {
+    /* On mobile, make modal take full height and allow scrolling */
+    height: 100vh;
+    width: 100vw;
+    max-width: none;
+    max-height: none;
+    padding: 0;
+    /* Improve touch scrolling performance */
+    -webkit-overflow-scrolling: touch;
+    transform: translate3d(0, 0, 0);
+  }
+  
+  .webtor-player-modal .bg-black {
+    border-radius: 0;
+    min-height: 100vh;
+  }
+}
+
+/* Ensure webtor iframe can be scrolled */
+.webtor {
+  /* Allow content to be scrollable */
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+</style>

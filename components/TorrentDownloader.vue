@@ -11,7 +11,7 @@
 
     <!-- Webtor Modal with SDK -->
     <div v-if="showWebtorModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div class="bg-gray-900 rounded-lg p-6 w-[95vw] h-[95vh] max-w-7xl overflow-hidden flex flex-col">
+      <div class="bg-gray-900 rounded-lg p-6 w-[95vw] h-[95vh] max-w-7xl overflow-auto flex flex-col webtor-modal">
         <!-- Header -->
         <div class="flex justify-between items-center mb-4">
           <h3 class="text-xl font-semibold text-white">Webtor.io Stream</h3>
@@ -35,10 +35,10 @@
         </div>
         
         <!-- Webtor SDK Player -->
-        <div class="flex-1 min-h-0 relative">
+        <div class="flex-1 min-h-0 relative overflow-auto">
           <div 
             :id="webtorPlayerId" 
-            class="webtor w-full h-full"
+            class="webtor w-full h-full min-h-[400px]"
             :class="{ 'opacity-0': webtorLoading || webtorError }"
           />
           <!-- Loading overlay when loading -->
@@ -665,3 +665,32 @@ async function copyMagnetToClipboard() {
   }
 }
 </script>
+
+<style scoped>
+.webtor-modal {
+  /* Enable smooth scrolling on iOS Safari */
+  -webkit-overflow-scrolling: touch;
+  /* Ensure proper scroll behavior on mobile */
+  overscroll-behavior: contain;
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 768px) {
+  .webtor-modal {
+    /* On mobile, make modal take full height and allow scrolling */
+    height: 100vh;
+    width: 100vw;
+    border-radius: 0;
+    /* Improve touch scrolling performance */
+    -webkit-overflow-scrolling: touch;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Ensure webtor iframe can be scrolled */
+.webtor {
+  /* Allow content to be scrollable */
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+</style>
