@@ -11,7 +11,7 @@
 
     <!-- Webtor Modal with SDK -->
     <div v-if="showWebtorModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div class="bg-gray-900 rounded-lg p-6 w-[95vw] h-[95vh] max-w-7xl overflow-hidden flex flex-col">
+      <div class="bg-gray-900 rounded-lg p-6 w-[95vw] h-[95vh] max-w-7xl overflow-auto flex flex-col" style="touch-action: manipulation;">
         <!-- Header -->
         <div class="flex justify-between items-center mb-4">
           <h3 class="text-xl font-semibold text-white">Webtor.io Stream</h3>
@@ -35,10 +35,11 @@
         </div>
         
         <!-- Webtor SDK Player -->
-        <div class="flex-1 min-h-0 relative">
+        <div class="flex-1 min-h-0 relative" style="touch-action: manipulation;">
           <div 
             :id="webtorPlayerId" 
             class="webtor w-full h-full"
+            style="touch-action: manipulation;"
             :class="{ 'opacity-0': webtorLoading || webtorError }"
           />
           <!-- Loading overlay when loading -->
