@@ -291,30 +291,66 @@ async function searchTorrents() {
 }
 
 function selectBestTorrent(torrents: any[]) {
-  // Filter out torrents with very low seeders
-  const viable = torrents.filter(t => (t.seeders || 0) >= 1)
+  // Filter out torrents with very low seeders and invalid resolutions
+  const viable = torrents.filter(t => {
+    const seeders = t.seeders || 0
+    const name = t.name?.toLowerCase() || ''
+    
+    // Must have at least 1 seeder
+    if (seeders < 1) return false
+    
+    // Reject torrents with resolution higher than 1080p (as per requirements)
+    if (name.includes('2160p') || name.includes('4k') || name.includes('2k')) {
+      console.log('🚫 Rejecting high-res torrent:', t.name?.substring(0, 50))
+      return false
+    }
+    
+    // Must have a valid magnet link or way to get one
+    if (!t.magnetLink && !t.magnet && !t.infoHash && !t.link) {
+      console.log('🚫 Rejecting torrent without magnet:', t.name?.substring(0, 50))
+      return false
+    }
+    
+    return true
+  })
   
   if (viable.length === 0) {
-    return torrents[0] // Return first available if all have low seeders
+    console.warn('⚠️ No viable torrents found, using first available')
+    return torrents[0] // Return first available if all are filtered out
   }
   
-  // Score torrents based on multiple factors
+  // Score torrents based on multiple factors with focus on seeders and 1080p max
   const scored = viable.map(torrent => {
     let score = 0
-    
-    // Seeder count (primary factor - 60% weight)
-    score += (torrent.seeders || 0) * 0.6
-    
-    // Quality detection (20% weight)
     const name = torrent.name?.toLowerCase() || ''
-    if (name.includes('1080p')) score += 50
-    else if (name.includes('720p')) score += 30
-    else if (name.includes('2160p') || name.includes('4k')) score += 40
     
-    // Prefer standard formats (10% weight)
-    if (name.includes('mp4') || name.includes('mkv')) score += 10
+    // Seeder count (primary factor - 70% weight, increased importance)
+    score += (torrent.seeders || 0) * 0.7
     
-    // Size preference (10% weight) - prefer reasonable sizes
+    // Quality detection (25% weight) - cap at 1080p as per requirements
+    if (name.includes('1080p')) score += 60        // Highest score for 1080p
+    else if (name.includes('720p')) score += 40    // Good score for 720p
+    else if (name.includes('480p')) score += 20    // Lower score for 480p
+    // Note: 4K/2160p already filtered out above
+    
+    // Movie title matching (bonus points for better matches)
+    const movieWords = props.movieTitle?.toLowerCase().split(/\s+/) || []
+    const torrentWords = name.split(/\s+/)
+    let matchCount = 0
+    
+    movieWords.forEach(word => {
+      if (word.length > 2 && torrentWords.some(tw => tw.includes(word) || word.includes(tw))) {
+        matchCount++
+      }
+    })
+    
+    // Bonus for title matching (up to 15 points)
+    score += Math.min(matchCount * 3, 15)
+    
+    // Prefer standard formats (5% weight)
+    if (name.includes('mp4') || name.includes('mkv') || name.includes('avi')) score += 8
+    
+    // Size preference - reject extremely large files that might be wrong content
     const sizeStr = torrent.size || ''
     const sizeMatch = sizeStr.match(/(\d+\.?\d*)\s*(GB|MB)/i)
     if (sizeMatch) {
@@ -322,9 +358,20 @@ function selectBestTorrent(torrents: any[]) {
       const unit = sizeMatch[2].toUpperCase()
       const sizeInGB = unit === 'GB' ? size : size / 1024
       
-      // Prefer 1-8GB range for movies
-      if (sizeInGB >= 1 && sizeInGB <= 8) score += 15
-      else if (sizeInGB >= 0.5 && sizeInGB <= 15) score += 10
+      // Prefer reasonable movie sizes (1-4GB for 1080p, 0.5-2GB for 720p)
+      if (name.includes('1080p')) {
+        if (sizeInGB >= 1.5 && sizeInGB <= 4) score += 12
+        else if (sizeInGB >= 1 && sizeInGB <= 6) score += 8
+        else if (sizeInGB > 10) score -= 20 // Penalize very large files
+      } else if (name.includes('720p')) {
+        if (sizeInGB >= 0.8 && sizeInGB <= 2.5) score += 12
+        else if (sizeInGB >= 0.5 && sizeInGB <= 4) score += 8
+        else if (sizeInGB > 8) score -= 15 // Penalize very large files
+      } else {
+        // For other qualities, prefer moderate sizes
+        if (sizeInGB >= 0.5 && sizeInGB <= 3) score += 8
+        else if (sizeInGB > 6) score -= 10
+      }
     }
     
     return { ...torrent, score }
@@ -333,13 +380,72 @@ function selectBestTorrent(torrents: any[]) {
   // Sort by score (highest first)
   scored.sort((a, b) => b.score - a.score)
   
-  console.log('🎯 Torrent scores:', scored.slice(0, 3).map(t => ({ 
-    name: t.name?.substring(0, 50), 
+  console.log('🎯 Torrent selection results:', scored.slice(0, 5).map(t => ({ 
+    name: t.name?.substring(0, 60), 
     seeders: t.seeders, 
-    score: t.score 
+    score: Math.round(t.score * 10) / 10,
+    size: t.size
   })))
   
-  return scored[0]
+  const selected = scored[0]
+  console.log('🏆 Selected torrent:', {
+    name: selected.name?.substring(0, 80),
+    seeders: selected.seeders,
+    score: Math.round(selected.score * 10) / 10,
+    source: selected.source
+  })
+  
+  return selected
+}
+
+function validateTorrentForMovie(torrent: any, movieTitle: string): boolean {
+  // Extract display name from magnet link or use torrent name
+  let torrentName = ''
+  
+  if (torrent.magnetLink || torrent.magnet) {
+    const magnetUri = torrent.magnetLink || torrent.magnet
+    const dnMatch = magnetUri.match(/dn=([^&]+)/)
+    if (dnMatch) {
+      torrentName = decodeURIComponent(dnMatch[1].replace(/\+/g, ' ')).toLowerCase()
+    }
+  }
+  
+  // Fallback to torrent name if no display name in magnet
+  if (!torrentName && torrent.name) {
+    torrentName = torrent.name.toLowerCase()
+  }
+  
+  if (!torrentName) {
+    console.warn('⚠️ Cannot validate torrent - no name available')
+    return true // Allow if we can't determine name
+  }
+  
+  // Split movie title into words and check for matches
+  const movieWords = movieTitle.toLowerCase()
+    .replace(/[^\w\s]/g, ' ') // Remove special characters
+    .split(/\s+/)
+    .filter(word => word.length > 2) // Only consider words longer than 2 chars
+  
+  // Check if at least half of the significant movie title words are in torrent name
+  let matchCount = 0
+  movieWords.forEach(word => {
+    if (torrentName.includes(word)) {
+      matchCount++
+    }
+  })
+  
+  const matchRatio = movieWords.length > 0 ? matchCount / movieWords.length : 0
+  const isValid = matchRatio >= 0.4 // At least 40% of words should match
+  
+  console.log('🔍 Torrent validation:', {
+    torrentName: torrentName.substring(0, 60),
+    movieWords: movieWords.join(', '),
+    matchCount,
+    matchRatio: Math.round(matchRatio * 100) + '%',
+    isValid
+  })
+  
+  return isValid
 }
 
 async function getMagnetUri() {
@@ -358,6 +464,13 @@ async function getMagnetUri() {
     
     if (!magnetUri.value) {
       throw new Error('Could not obtain magnet URI')
+    }
+    
+    // Validate that the magnet URI actually matches the movie we're looking for
+    const isValid = validateTorrentForMovie(bestTorrent.value, props.movieTitle)
+    if (!isValid) {
+      console.warn('⚠️ Selected torrent may not match the movie, but proceeding anyway')
+      // Note: We proceed anyway but log the warning since perfect matching is difficult
     }
     
     // Create Webtor URL for fallback

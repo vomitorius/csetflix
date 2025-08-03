@@ -204,8 +204,18 @@ export const useTorrentStore = defineStore('torrent', {
           }
         })
         
-        // Sort by seeders (highest first)
-        this.searchResults = torrents.sort((a: { seeders: number }, b: { seeders: number }) => b.seeders - a.seeders)
+        // Sort by seeders (highest first) and filter out resolutions higher than 1080p
+        this.searchResults = torrents
+          .filter((t: any) => {
+            const name = t.name?.toLowerCase() || ''
+            // Filter out 4K/2160p content as per requirements (max 1080p)
+            if (name.includes('2160p') || name.includes('4k') || name.includes('2k')) {
+              console.log('🚫 Filtering out high-res torrent from TorrentIO:', t.name?.substring(0, 50))
+              return false
+            }
+            return true
+          })
+          .sort((a: { seeders: number }, b: { seeders: number }) => b.seeders - a.seeders)
       } catch (error: any) {
         this.error = `Error searching torrents: ${error.message}`
         console.error('Torrentio search error:', error)
@@ -261,10 +271,21 @@ export const useTorrentStore = defineStore('torrent', {
           }
         })
         
-        // Sort by seeders (highest first) and take top 15 results
+        // Sort by seeders (highest first), filter out high resolutions, and take top 15 results
         this.titleSearchResults = torrents
+          .filter((t: TorrentSearchResult) => {
+            // Only include results with valid magnet links
+            if (!t.magnetLink) return false
+            
+            const name = t.name?.toLowerCase() || ''
+            // Filter out 4K/2160p content as per requirements (max 1080p)
+            if (name.includes('2160p') || name.includes('4k') || name.includes('2k')) {
+              console.log('🚫 Filtering out high-res torrent from BitSearch:', t.name?.substring(0, 50))
+              return false
+            }
+            return true
+          })
           .sort((a: { seeders: number }, b: { seeders: number }) => b.seeders - a.seeders)
-          .filter((t: TorrentSearchResult) => t.magnetLink) // Only include results with valid magnet links
           .slice(0, 15)
         
       } catch (error: any) {
@@ -298,6 +319,14 @@ export const useTorrentStore = defineStore('torrent', {
             // Each movie has multiple torrent qualities
             movie.torrents.forEach((torrent: any) => {
               const name = `${movieTitle} (${movieYear}) ${torrent.quality} ${torrent.type}`
+              const quality = torrent.quality?.toLowerCase() || ''
+              
+              // Filter out 4K/2160p content as per requirements (max 1080p)
+              if (quality.includes('2160p') || quality.includes('4k') || quality.includes('2k')) {
+                console.log('🚫 Filtering out high-res torrent from YTS:', name)
+                return // Skip this torrent
+              }
+              
               const magnetLink = this.createYtsMagnetLink(torrent.hash, name)
               
               torrents.push({
