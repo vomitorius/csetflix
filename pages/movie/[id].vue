@@ -396,8 +396,10 @@ const relatedError = ref<string | null>(null)
 // Credits state
 const directors = ref<Person[]>([])
 const topCast = ref<Person[]>([])
+
 const watchOptionsVisible = ref(false)
 const releaseDateTapCount = ref(0)
+
 
 const posterUrl = computed(() => {
   if (!movie.value.poster_path) return '/no-poster.jpg'
