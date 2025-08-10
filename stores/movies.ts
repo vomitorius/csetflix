@@ -120,30 +120,36 @@ export const useMoviesStore = defineStore('movies', {
           })
         ])
 
-        // Start with movie title search results
         const uniqueMovies = new Map<number, Movie>()
-        const movieResults = movieResponse.data.results as Movie[]
-        movieResults.forEach(movie => uniqueMovies.set(movie.id, movie))
 
-        // If a matching person is found (actor/director), fetch their movie credits
+        // If a matching person is found (actor/director), fetch their movie credits first
         const person = personResponse.data.results?.[0]
         if (person) {
-          const creditsResponse = await axios.get(`${config.public.tmdbApiBaseUrl}/person/${person.id}/movie_credits`, {
-            params: {
-              api_key: config.public.tmdbApiKey
+          const creditsResponse = await axios.get(
+            `${config.public.tmdbApiBaseUrl}/person/${person.id}/movie_credits`,
+            {
+              params: {
+                api_key: config.public.tmdbApiKey
+              }
             }
-          })
+          )
 
           const castMovies = (creditsResponse.data.cast || []) as Movie[]
           const directedMovies = (creditsResponse.data.crew || [])
             .filter((c: any) => c.job === 'Director') as Movie[]
 
           ;[...castMovies, ...directedMovies].forEach(movie => {
-            if (!uniqueMovies.has(movie.id)) {
-              uniqueMovies.set(movie.id, movie)
-            }
+            uniqueMovies.set(movie.id, movie)
           })
         }
+
+        // Now append movie title search results without duplicates
+        const movieResults = movieResponse.data.results as Movie[]
+        movieResults.forEach(movie => {
+          if (!uniqueMovies.has(movie.id)) {
+            uniqueMovies.set(movie.id, movie)
+          }
+        })
 
         this.searchResults = Array.from(uniqueMovies.values())
       } catch (error: any) {
