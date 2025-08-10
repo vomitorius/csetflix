@@ -12,7 +12,7 @@
           CsetFlix - Personal Media Center &copy; {{ new Date().getFullYear() }}
         </p>
         <p class="text-neutral-500 text-xs mt-2">
-          Powered by TMDB API, qBittorrent, and Jellyfin
+          Powered by TMDB
         </p>
       </div>
     </footer>

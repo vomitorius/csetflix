@@ -92,24 +92,72 @@ export const useMoviesStore = defineStore('movies', {
       this.searchResults = []
       this.error = null
     },
-    
+
     async searchMovies(query: string) {
       if (!query) {
         this.searchResults = []
         return
       }
-      
+
       const config = useRuntimeConfig()
       try {
         this.loading = true
         this.error = null
-        const response = await axios.get(`${config.public.tmdbApiBaseUrl}/search/movie`, {
-          params: {
-            api_key: config.public.tmdbApiKey,
-            query
+
+        // Search for movies by title and people (actors/directors) simultaneously
+        const [movieResponse, personResponse] = await Promise.all([
+          axios.get(`${config.public.tmdbApiBaseUrl}/search/movie`, {
+            params: {
+              api_key: config.public.tmdbApiKey,
+              query
+            }
+          }),
+          axios.get(`${config.public.tmdbApiBaseUrl}/search/person`, {
+            params: {
+              api_key: config.public.tmdbApiKey,
+              query
+            }
+          })
+        ])
+
+        const uniqueMovies = new Map<number, Movie>()
+
+        // Find the most relevant person (actor/director) for the query
+        const lowerQuery = query.toLowerCase()
+        const person = personResponse.data.results?.find((p: any) =>
+          ['Directing', 'Acting'].includes(p.known_for_department) &&
+          p.name.toLowerCase().includes(lowerQuery)
+        ) || personResponse.data.results?.[0]
+
+        // If a matching person is found, fetch their movie credits first
+        if (person) {
+          const creditsResponse = await axios.get(
+            `${config.public.tmdbApiBaseUrl}/person/${person.id}/movie_credits`,
+            {
+              params: {
+                api_key: config.public.tmdbApiKey
+              }
+            }
+          )
+
+          const castMovies = (creditsResponse.data.cast || []) as Movie[]
+          const directedMovies = (creditsResponse.data.crew || [])
+            .filter((c: any) => c.job === 'Director') as Movie[]
+
+          ;[...castMovies, ...directedMovies].forEach(movie => {
+            uniqueMovies.set(movie.id, movie)
+          })
+        }
+
+        // Now append movie title search results without duplicates
+        const movieResults = movieResponse.data.results as Movie[]
+        movieResults.forEach(movie => {
+          if (!uniqueMovies.has(movie.id)) {
+            uniqueMovies.set(movie.id, movie)
           }
         })
-        this.searchResults = response.data.results
+
+        this.searchResults = Array.from(uniqueMovies.values())
       } catch (error: any) {
         this.error = error.message
       } finally {

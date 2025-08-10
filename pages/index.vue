@@ -13,8 +13,7 @@
       <div class="hero-content text-center relative z-20 w-full px-4 md:px-8 py-16">
         <div class="max-w-2xl mx-auto">
           <h1 class="text-4xl md:text-5xl font-bold mb-6 text-white drop-shadow-md">CsetFlix</h1>
-          <p class="py-4 text-lg text-gray-200 max-w-md mx-auto mb-6">Your personal media center for browsing, discovering, and downloading movies.</p>
-          
+
           <div class="flex flex-col sm:flex-row gap-3 justify-center mb-8">
             <NuxtLink v-if="headerMovie" :to="`/movie/${headerMovie.id}`" class="btn bg-red-600 hover:bg-red-700 border-red-700 text-white btn-lg">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

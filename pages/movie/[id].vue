@@ -141,7 +141,7 @@
               </div>
             </div>
             
-            <div class="card bg-neutral-800 mb-8">
+            <div v-if="watchOptionsVisible" class="card bg-neutral-800 mb-8">
               <div class="card-body">
                 <h2 class="card-title text-xl mb-2">Watch Now</h2>
                 <p class="mb-4">Stream "{{ movie.title }}" instantly:</p>
@@ -173,7 +173,7 @@
                     <tbody>
                       <tr>
                         <td class="font-bold">Release Date</td>
-                        <td>{{ formatDate }}</td>
+                        <td @click="handleReleaseDateTap" @touchstart="handleReleaseDateTap">{{ formatDate }}</td>
                       </tr>
                       <tr>
                         <td class="font-bold">Rating</td>
@@ -183,13 +183,43 @@
                         <td class="font-bold">Genres</td>
                         <td>
                           <div class="flex flex-wrap gap-1">
-                            <NuxtLink 
-                              v-for="genre in movie.genres" 
+                            <NuxtLink
+                              v-for="genre in movie.genres"
                               :key="genre.id"
                               :to="`/genres?id=${genre.id}`"
                               class="badge badge-outline hover:bg-red-600 hover:text-white hover:border-red-700 cursor-pointer transition-colors duration-200"
                             >
                               {{ genre.name }}
+                            </NuxtLink>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr v-if="directors.length">
+                        <td class="font-bold">Director</td>
+                        <td>
+                          <div class="flex flex-wrap gap-1">
+                            <NuxtLink
+                              v-for="person in directors"
+                              :key="person.id"
+                              :to="`/search?q=${encodeURIComponent(person.name)}`"
+                              class="badge badge-outline hover:bg-red-600 hover:text-white hover:border-red-700 cursor-pointer transition-colors duration-200"
+                            >
+                              {{ person.name }}
+                            </NuxtLink>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr v-if="topCast.length">
+                        <td class="font-bold">Cast</td>
+                        <td>
+                          <div class="flex flex-wrap gap-1">
+                            <NuxtLink
+                              v-for="actor in topCast"
+                              :key="actor.id"
+                              :to="`/search?q=${encodeURIComponent(actor.name)}`"
+                              class="badge badge-outline hover:bg-red-600 hover:text-white hover:border-red-700 cursor-pointer transition-colors duration-200"
+                            >
+                              {{ actor.name }}
                             </NuxtLink>
                           </div>
                         </td>
@@ -339,6 +369,11 @@ interface MovieImage {
   aspect_ratio: number
 }
 
+interface Person {
+  id: number
+  name: string
+}
+
 const route = useRoute()
 const router = useRouter()
 const config = useRuntimeConfig()
@@ -357,6 +392,12 @@ const loadingImages = ref(true)
 const relatedMovies = ref<Movie[]>([])
 const loadingRelated = ref(true)
 const relatedError = ref<string | null>(null)
+
+// Credits state
+const directors = ref<Person[]>([])
+const topCast = ref<Person[]>([])
+const watchOptionsVisible = ref(false)
+const releaseDateTapCount = ref(0)
 
 const posterUrl = computed(() => {
   if (!movie.value.poster_path) return '/no-poster.jpg'
@@ -435,6 +476,18 @@ function toggleShowAllImages() {
 function openImageGallery(index: number) {
   selectedImageIndex.value = index
   showGallery.value = true
+}
+
+function handleReleaseDateTap() {
+  if (watchOptionsVisible.value) return
+  releaseDateTapCount.value++
+  if (releaseDateTapCount.value >= 3) {
+    watchOptionsVisible.value = true
+    releaseDateTapCount.value = 0
+  }
+  setTimeout(() => {
+    releaseDateTapCount.value = 0
+  }, 1000)
 }
 
 // Related movies scroll state
@@ -640,18 +693,28 @@ onMounted(async () => {
     
     const response = await axios.get(`${config.public.tmdbApiBaseUrl}/movie/${movieId.value}`, {
       params: {
-        api_key: config.public.tmdbApiKey
+        api_key: config.public.tmdbApiKey,
+        append_to_response: 'credits'
       }
     })
-    
+
     movie.value = response.data
-    
+
+    // Extract director(s) and top cast from credits
+    const credits = response.data.credits || {}
+    directors.value = (credits.crew || [])
+      .filter((c: any) => c.job === 'Director')
+      .map((c: any) => ({ id: c.id, name: c.name }))
+    topCast.value = (credits.cast || [])
+      .slice(0, 5)
+      .map((c: any) => ({ id: c.id, name: c.name }))
+
     // Fetch trailer after movie details are loaded
     await fetchTrailer()
-    
+
     // Fetch movie images for gallery
     await fetchMovieImages(movieId.value)
-    
+
     // Fetch related movies
     await fetchRelatedMovies(movieId.value)
   } catch (err: any) {
