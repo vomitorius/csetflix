@@ -122,8 +122,14 @@ export const useMoviesStore = defineStore('movies', {
 
         const uniqueMovies = new Map<number, Movie>()
 
-        // If a matching person is found (actor/director), fetch their movie credits first
-        const person = personResponse.data.results?.[0]
+        // Find the most relevant person (actor/director) for the query
+        const lowerQuery = query.toLowerCase()
+        const person = personResponse.data.results?.find((p: any) =>
+          ['Directing', 'Acting'].includes(p.known_for_department) &&
+          p.name.toLowerCase().includes(lowerQuery)
+        ) || personResponse.data.results?.[0]
+
+        // If a matching person is found, fetch their movie credits first
         if (person) {
           const creditsResponse = await axios.get(
             `${config.public.tmdbApiBaseUrl}/person/${person.id}/movie_credits`,
