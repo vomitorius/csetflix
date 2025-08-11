@@ -37,12 +37,6 @@
           </svg>
           Details
         </button>
-        <button @click="downloadMovie" class="btn btn-sm btn-primary">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          Download
-        </button>
       </div>
     </div>
   </div>
@@ -59,15 +53,12 @@ interface Movie {
   vote_average: number;
 }
 
-import { useTorrentStore } from '~/stores/torrent'
-
 const props = defineProps<{
   movie: Movie
 }>()
 
 const config = useRuntimeConfig()
 const router = useRouter()
-const torrentStore = useTorrentStore()
 const imageLoaded = ref<boolean | null>(null)
 
 const posterUrl = computed(() => {
@@ -93,8 +84,4 @@ function showDetails() {
   router.push(`/movie/${props.movie.id}`)
 }
 
-function downloadMovie() {
-  torrentStore.searchTorrents(props.movie.title)
-  router.push(`/download/${props.movie.id}`)
-}
 </script>

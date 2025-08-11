@@ -141,7 +141,7 @@
               </div>
             </div>
             
-            <div class="card bg-neutral-800 mb-8">
+            <div v-if="watchOptionsVisible" class="card bg-neutral-800 mb-8">
               <div class="card-body">
                 <h2 class="card-title text-xl mb-2">Watch Now</h2>
                 <p class="mb-4">Stream "{{ movie.title }}" instantly:</p>
@@ -173,7 +173,7 @@
                     <tbody>
                       <tr>
                         <td class="font-bold">Release Date</td>
-                        <td>{{ formatDate }}</td>
+                        <td @click="handleReleaseDateTap" @touchstart="handleReleaseDateTap">{{ formatDate }}</td>
                       </tr>
                       <tr>
                         <td class="font-bold">Rating</td>
@@ -397,6 +397,10 @@ const relatedError = ref<string | null>(null)
 const directors = ref<Person[]>([])
 const topCast = ref<Person[]>([])
 
+const watchOptionsVisible = ref(false)
+const releaseDateTapCount = ref(0)
+
+
 const posterUrl = computed(() => {
   if (!movie.value.poster_path) return '/no-poster.jpg'
   return `${config.public.tmdbImageBaseUrl}/w500${movie.value.poster_path}`
@@ -474,6 +478,18 @@ function toggleShowAllImages() {
 function openImageGallery(index: number) {
   selectedImageIndex.value = index
   showGallery.value = true
+}
+
+function handleReleaseDateTap() {
+  if (watchOptionsVisible.value) return
+  releaseDateTapCount.value++
+  if (releaseDateTapCount.value >= 3) {
+    watchOptionsVisible.value = true
+    releaseDateTapCount.value = 0
+  }
+  setTimeout(() => {
+    releaseDateTapCount.value = 0
+  }, 1000)
 }
 
 // Related movies scroll state
