@@ -42,5 +42,5 @@ export const useFavoritesStore = defineStore('favorites', () => {
     watch(favorites, save, { deep: true })
   }
 
-  return { favorites, toggleFavorite, isFavorite }
+  return { favorites, toggleFavorite, isFavorite, load }
 })
