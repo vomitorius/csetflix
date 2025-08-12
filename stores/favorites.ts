@@ -30,6 +30,7 @@ export const useFavoritesStore = defineStore('favorites', () => {
     } else {
       favorites.value.push(movie)
     }
+    save()
   }
 
   function isFavorite(id: number) {
