@@ -11,6 +11,7 @@
         <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-neutral-800 rounded-box w-52 border border-neutral-700">
           <li><NuxtLink to="/" class="hover:text-red-500 transition-colors">Home</NuxtLink></li>
           <li><NuxtLink to="/genres" class="hover:text-red-500 transition-colors">Genres</NuxtLink></li>
+          <li><NuxtLink to="/favorites" class="hover:text-red-500 transition-colors">Favorites</NuxtLink></li>
           <li><NuxtLink to="/search" class="hover:text-red-500 transition-colors">Search</NuxtLink></li>
         </ul>
       </div>
@@ -29,6 +30,9 @@
         </li>
         <li>
           <NuxtLink to="/genres" class="text-base font-medium hover:text-red-500 transition-colors">Genres</NuxtLink>
+        </li>
+        <li>
+          <NuxtLink to="/favorites" class="text-base font-medium hover:text-red-500 transition-colors">Favorites</NuxtLink>
         </li>
         <li>
           <NuxtLink to="/search" class="text-base font-medium hover:text-red-500 transition-colors">Search</NuxtLink>
