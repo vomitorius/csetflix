@@ -37,7 +37,15 @@ export const useFavoritesStore = defineStore('favorites', () => {
     return favorites.value.some(m => m.id === id)
   }
 
+
+  if (process.client) {
+    onMounted(load)
+    watch(favorites, save, { deep: true })
+  }
+
+
   load()
 
   return { favorites, toggleFavorite, isFavorite }
+
 })
