@@ -77,6 +77,20 @@
       </div>
     </div>
 
+    <!-- Recommended Movies Section -->
+    <div v-if="favoritesStore.favorites.length > 0 && moviesStore.recommendedMovies.length > 0" class="container mx-auto px-4 py-12 bg-neutral-800">
+      <div class="mb-8 flex justify-between items-center">
+        <h2 class="text-2xl md:text-3xl font-bold">
+          <span class="text-red-600">Recommended</span> to you
+        </h2>
+        <p class="text-sm text-gray-400">Based on your {{ favoritesStore.favorites.length }} favorite{{ favoritesStore.favorites.length === 1 ? '' : 's' }}</p>
+      </div>
+      
+      <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+        <MovieCard v-for="movie in moviesStore.recommendedMovies" :key="`rec-${movie.id}`" :movie="movie" />
+      </div>
+    </div>
+
     <!-- Scroll to top button -->
     <button 
       @click="scrollToTop" 
@@ -92,10 +106,12 @@
 
 <script setup lang="ts">
 import { useMoviesStore } from '~/stores/movies'
+import { useFavoritesStore } from '~/stores/favorites'
 import axios from 'axios'
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 
 const moviesStore = useMoviesStore()
+const favoritesStore = useFavoritesStore()
 const headerMovie = ref(null)
 const currentPage = ref(1)
 const moviesPerPage = 16
@@ -168,9 +184,27 @@ onMounted(async () => {
     await moviesStore.fetchTrending()
   }
 
+  // Fetch recommended movies if user has favorites
+  if (favoritesStore.favorites.length > 0) {
+    await moviesStore.fetchRecommendedMovies(favoritesStore.favorites)
+  }
+
   // Add scroll event listener
   window.addEventListener('scroll', handleScroll)
 })
+
+// Watch for changes in favorites and update recommendations
+watch(
+  () => favoritesStore.favorites,
+  async (newFavorites) => {
+    if (newFavorites.length > 0) {
+      await moviesStore.fetchRecommendedMovies(newFavorites)
+    } else {
+      moviesStore.recommendedMovies = []
+    }
+  },
+  { deep: true }
+)
 
 onUnmounted(() => {
   // Remove scroll event listener when component is destroyed
