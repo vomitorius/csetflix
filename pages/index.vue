@@ -48,7 +48,7 @@
           <span class="text-red-600">Trending</span> This Week
         </h2>
       </div>
-      
+
       <div v-if="moviesStore.loading && !loadingMore" class="flex justify-center my-12">
         <span class="loading loading-spinner loading-lg text-red-600"></span>
       </div>
@@ -63,11 +63,11 @@
       <div v-else class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
         <MovieCard v-for="movie in displayedMovies" :key="movie.id" :movie="movie" />
       </div>
-      
+
       <!-- Bottom Load More Button -->
       <div class="flex justify-center mt-12">
-        <button 
-          @click="loadMore" 
+        <button
+          @click="loadMore"
           class="btn border-red-700 bg-transparent hover:bg-red-800/30 text-red-500 hover:text-red-400 btn-lg px-8"
           :class="{ 'btn-disabled': moviesStore.loading }"
         >
@@ -77,9 +77,32 @@
       </div>
     </div>
 
+    <div
+      v-if="moviesStore.recommendedMovies.length"
+      class="container mx-auto px-4 py-12 bg-neutral-900"
+    >
+      <!-- Recommended Movies -->
+      <div class="mb-8 flex justify-between items-center">
+        <h2 class="text-2xl md:text-3xl font-bold">
+          <span class="text-red-600">Recommended</span> to You
+        </h2>
+      </div>
+
+      <div v-if="moviesStore.recommendationsLoading" class="flex justify-center my-12">
+        <span class="loading loading-spinner loading-lg text-red-600"></span>
+      </div>
+      <div v-else class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+        <MovieCard
+          v-for="movie in moviesStore.recommendedMovies"
+          :key="movie.id"
+          :movie="movie"
+        />
+      </div>
+    </div>
+
     <!-- Scroll to top button -->
-    <button 
-      @click="scrollToTop" 
+    <button
+      @click="scrollToTop"
       class="btn btn-circle bg-red-600 hover:bg-red-700 border-red-700 text-white btn-lg fixed bottom-6 right-6 shadow-xl z-50 animate-pulse-slow"
       v-show="showScrollTop"
     >
@@ -92,10 +115,12 @@
 
 <script setup lang="ts">
 import { useMoviesStore } from '~/stores/movies'
+import { useFavoritesStore } from '~/stores/favorites'
 import axios from 'axios'
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 
 const moviesStore = useMoviesStore()
+const favoritesStore = useFavoritesStore()
 const headerMovie = ref(null)
 const currentPage = ref(1)
 const moviesPerPage = 16
@@ -105,6 +130,18 @@ const showScrollTop = ref(false)
 const displayedMovies = computed(() => {
   return moviesStore.trendingMovies.slice(0, currentPage.value * moviesPerPage)
 })
+
+watch(
+  () => favoritesStore.favorites,
+  async newFavs => {
+    if (newFavs.length) {
+      await moviesStore.fetchRecommendationsForFavorites(newFavs)
+    } else {
+      moviesStore.recommendedMovies = []
+    }
+  },
+  { immediate: true, deep: true }
+)
 
 function scrollToTop() {
   window.scrollTo({

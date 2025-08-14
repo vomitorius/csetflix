@@ -26,6 +26,8 @@ export const useMoviesStore = defineStore('movies', {
     genres: [] as Genre[],
     selectedMovie: null as Movie | null,
     loading: false,
+    recommendedMovies: [] as Movie[],
+    recommendationsLoading: false,
     error: null as string | null,
     currentGenreId: null as number | null,
     totalGenrePages: 1
@@ -87,7 +89,43 @@ export const useMoviesStore = defineStore('movies', {
         this.loading = false
       }
     },
-    
+
+    async fetchRecommendationsForFavorites(favorites: Movie[]) {
+      if (favorites.length === 0) {
+        this.recommendedMovies = []
+        return
+      }
+
+      const config = useRuntimeConfig()
+      try {
+        this.recommendationsLoading = true
+        const unique = new Map<number, Movie>()
+
+        await Promise.all(
+          favorites.map(async fav => {
+            const response = await axios.get(
+              `${config.public.tmdbApiBaseUrl}/movie/${fav.id}/recommendations`,
+              {
+                params: { api_key: config.public.tmdbApiKey }
+              }
+            )
+            const results: Movie[] = response.data.results || []
+            results.forEach(movie => {
+              if (!favorites.some(f => f.id === movie.id) && !unique.has(movie.id)) {
+                unique.set(movie.id, movie)
+              }
+            })
+          })
+        )
+
+        this.recommendedMovies = Array.from(unique.values())
+      } catch (error: any) {
+        this.error = error.message
+      } finally {
+        this.recommendationsLoading = false
+      }
+    },
+
     clearSearch() {
       this.searchResults = []
       this.error = null
