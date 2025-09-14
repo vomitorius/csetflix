@@ -9,10 +9,10 @@
           </svg>
         </label>
         <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-neutral-800 rounded-box w-52 border border-neutral-700">
-          <li><NuxtLink to="/" class="hover:text-red-500 transition-colors">Home</NuxtLink></li>
-          <li><NuxtLink to="/genres" class="hover:text-red-500 transition-colors">Genres</NuxtLink></li>
-          <li><NuxtLink to="/favorites" class="hover:text-red-500 transition-colors">Favorites</NuxtLink></li>
-          <li><NuxtLink to="/search" class="hover:text-red-500 transition-colors">Search</NuxtLink></li>
+          <li><NuxtLink ref="mobileHomeRef" to="/" class="hover:text-red-500 transition-colors tv-focusable nav-item">Home</NuxtLink></li>
+          <li><NuxtLink ref="mobileGenresRef" to="/genres" class="hover:text-red-500 transition-colors tv-focusable nav-item">Genres</NuxtLink></li>
+          <li><NuxtLink ref="mobileFavoritesRef" to="/favorites" class="hover:text-red-500 transition-colors tv-focusable nav-item">Favorites</NuxtLink></li>
+          <li><NuxtLink ref="mobileSearchRef" to="/search" class="hover:text-red-500 transition-colors tv-focusable nav-item">Search</NuxtLink></li>
         </ul>
       </div>
       <NuxtLink to="/" class="btn btn-ghost normal-case text-xl md:text-2xl text-red-600 font-bold hover:text-red-500 transition-colors">
@@ -26,16 +26,16 @@
     <div class="navbar-center hidden lg:flex">
       <ul class="menu menu-horizontal px-1">
         <li>
-          <NuxtLink to="/" class="text-base font-medium hover:text-red-500 transition-colors">Home</NuxtLink>
+          <NuxtLink ref="homeRef" to="/" class="text-base font-medium hover:text-red-500 transition-colors tv-focusable nav-item">Home</NuxtLink>
         </li>
         <li>
-          <NuxtLink to="/genres" class="text-base font-medium hover:text-red-500 transition-colors">Genres</NuxtLink>
+          <NuxtLink ref="genresRef" to="/genres" class="text-base font-medium hover:text-red-500 transition-colors tv-focusable nav-item">Genres</NuxtLink>
         </li>
         <li>
-          <NuxtLink to="/favorites" class="text-base font-medium hover:text-red-500 transition-colors">Favorites</NuxtLink>
+          <NuxtLink ref="favoritesRef" to="/favorites" class="text-base font-medium hover:text-red-500 transition-colors tv-focusable nav-item">Favorites</NuxtLink>
         </li>
         <li>
-          <NuxtLink to="/search" class="text-base font-medium hover:text-red-500 transition-colors">Search</NuxtLink>
+          <NuxtLink ref="searchRef" to="/search" class="text-base font-medium hover:text-red-500 transition-colors tv-focusable nav-item">Search</NuxtLink>
         </li>
       </ul>
     </div>
@@ -44,15 +44,17 @@
       <div class="form-control mr-2">
         <div class="relative">
           <input 
+            ref="searchInputRef"
             type="text" 
             placeholder="Search movies..." 
             v-model="searchQuery" 
             @keyup.enter="searchMovies" 
-            class="input input-bordered w-24 md:w-auto bg-neutral-800 pr-8 focus:ring-2 focus:ring-red-500 border-neutral-700"
+            class="input input-bordered w-24 md:w-auto bg-neutral-800 pr-8 focus:ring-2 focus:ring-red-500 border-neutral-700 tv-focusable"
           />
           <button 
+            ref="searchButtonRef"
             @click="searchMovies" 
-            class="absolute top-1/2 right-2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"
+            class="absolute top-1/2 right-2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors tv-focusable"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -66,11 +68,93 @@
 
 <script setup lang="ts">
 import { useMoviesStore } from '~/stores/movies'
+import { useTVRemote } from '~/composables/useTVRemote'
 
 const router = useRouter()
 const route = useRoute()
 const moviesStore = useMoviesStore()
 const searchQuery = ref('')
+
+// TV Remote support - refs for focusable elements
+const homeRef = ref<HTMLElement>()
+const genresRef = ref<HTMLElement>()
+const favoritesRef = ref<HTMLElement>()
+const searchRef = ref<HTMLElement>()
+const searchInputRef = ref<HTMLInputElement>()
+const searchButtonRef = ref<HTMLElement>()
+
+// Mobile navigation refs
+const mobileHomeRef = ref<HTMLElement>()
+const mobileGenresRef = ref<HTMLElement>()
+const mobileFavoritesRef = ref<HTMLElement>()
+const mobileSearchRef = ref<HTMLElement>()
+
+const { registerFocusable } = useTVRemote()
+
+onMounted(() => {
+  const unregisterCallbacks: (() => void)[] = []
+  
+  // Register main navigation items with higher priority
+  if (homeRef.value && homeRef.value.$el) {
+    unregisterCallbacks.push(registerFocusable(homeRef.value.$el, 'nav-home', 10))
+  } else if (homeRef.value) {
+    unregisterCallbacks.push(registerFocusable(homeRef.value, 'nav-home', 10))
+  }
+  
+  if (genresRef.value && genresRef.value.$el) {
+    unregisterCallbacks.push(registerFocusable(genresRef.value.$el, 'nav-genres', 10))
+  } else if (genresRef.value) {
+    unregisterCallbacks.push(registerFocusable(genresRef.value, 'nav-genres', 10))
+  }
+  
+  if (favoritesRef.value && favoritesRef.value.$el) {
+    unregisterCallbacks.push(registerFocusable(favoritesRef.value.$el, 'nav-favorites', 10))
+  } else if (favoritesRef.value) {
+    unregisterCallbacks.push(registerFocusable(favoritesRef.value, 'nav-favorites', 10))
+  }
+  
+  if (searchRef.value && searchRef.value.$el) {
+    unregisterCallbacks.push(registerFocusable(searchRef.value.$el, 'nav-search', 10))
+  } else if (searchRef.value) {
+    unregisterCallbacks.push(registerFocusable(searchRef.value, 'nav-search', 10))
+  }
+  
+  if (searchInputRef.value) {
+    unregisterCallbacks.push(registerFocusable(searchInputRef.value, 'search-input', 9))
+  }
+  if (searchButtonRef.value) {
+    unregisterCallbacks.push(registerFocusable(searchButtonRef.value, 'search-button', 9))
+  }
+  
+  // Register mobile navigation items
+  if (mobileHomeRef.value && mobileHomeRef.value.$el) {
+    unregisterCallbacks.push(registerFocusable(mobileHomeRef.value.$el, 'mobile-nav-home', 10))
+  } else if (mobileHomeRef.value) {
+    unregisterCallbacks.push(registerFocusable(mobileHomeRef.value, 'mobile-nav-home', 10))
+  }
+  
+  if (mobileGenresRef.value && mobileGenresRef.value.$el) {
+    unregisterCallbacks.push(registerFocusable(mobileGenresRef.value.$el, 'mobile-nav-genres', 10))
+  } else if (mobileGenresRef.value) {
+    unregisterCallbacks.push(registerFocusable(mobileGenresRef.value, 'mobile-nav-genres', 10))
+  }
+  
+  if (mobileFavoritesRef.value && mobileFavoritesRef.value.$el) {
+    unregisterCallbacks.push(registerFocusable(mobileFavoritesRef.value.$el, 'mobile-nav-favorites', 10))
+  } else if (mobileFavoritesRef.value) {
+    unregisterCallbacks.push(registerFocusable(mobileFavoritesRef.value, 'mobile-nav-favorites', 10))
+  }
+  
+  if (mobileSearchRef.value && mobileSearchRef.value.$el) {
+    unregisterCallbacks.push(registerFocusable(mobileSearchRef.value.$el, 'mobile-nav-search', 10))
+  } else if (mobileSearchRef.value) {
+    unregisterCallbacks.push(registerFocusable(mobileSearchRef.value, 'mobile-nav-search', 10))
+  }
+  
+  onUnmounted(() => {
+    unregisterCallbacks.forEach(callback => callback())
+  })
+})
 
 async function searchMovies() {
   if (!searchQuery.value.trim()) return
