@@ -1,19 +1,38 @@
 <!-- Updated to use Webtor SDK -->
 <template>
   <div v-if="isVisible" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-    <div class="w-full h-full max-w-6xl max-h-screen p-4">
+    <div ref="playerContainerRef" class="w-full h-full max-w-6xl max-h-screen p-4" :class="{ 'max-w-none p-0': isFullscreen }">
       <div class="bg-black rounded-lg overflow-hidden h-full flex flex-col">
         <!-- Header -->
         <div class="flex justify-between items-center p-4 bg-gray-800">
           <h3 class="text-white text-lg font-semibold">
             {{ movieTitle || 'Torrent Player' }}
           </h3>
-          <button 
-            @click="closePlayer"
-            class="text-white hover:text-red-400 text-2xl"
-          >
-            ×
-          </button>
+          <div class="flex items-center gap-2">
+            <!-- Fullscreen Button -->
+            <button 
+              @click="toggleFullscreen"
+              class="text-white hover:text-blue-400 text-xl p-1 rounded transition-colors"
+              :title="isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'"
+              v-if="!isLoading && !error"
+            >
+              <!-- Exit Fullscreen Icon -->
+              <svg v-if="isFullscreen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              <!-- Enter Fullscreen Icon -->
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              </svg>
+            </button>
+            <!-- Close Button -->
+            <button 
+              @click="closePlayer"
+              class="text-white hover:text-red-400 text-2xl"
+            >
+              ×
+            </button>
+          </div>
         </div>
         
         <!-- Loading State -->
@@ -112,6 +131,11 @@ const movieTitle = ref('')
 const streamStatus = ref('Connecting')
 const playerId = ref(`webtor-player-${Date.now()}`)
 const embedUrl = ref<string>('')
+const isFullscreen = ref(false)
+const playerContainerRef = ref<HTMLDivElement>()
+
+// Fullscreen element reference
+const fullscreenElement = ref<HTMLElement | null>(null)
 
 // Load Webtor SDK script
 const loadWebtorSDK = () => {
@@ -212,6 +236,16 @@ watch(() => props.isVisible, async (visible) => {
     cleanup()
   }
 }, { immediate: true })
+
+// Set up fullscreen event listeners
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange)
+    document.addEventListener('msfullscreenchange', handleFullscreenChange)
+  }
+})
 
 async function initializeStream() {
   console.log('🚀 Initializing stream with Webtor SDK...')
@@ -326,7 +360,67 @@ function openInNewTab() {
 
 function closePlayer() {
   console.log('🚪 Closing player')
+  // Exit fullscreen if active before closing
+  if (isFullscreen.value) {
+    exitFullscreen()
+  }
   emit('close')
+}
+
+// Fullscreen functionality
+function toggleFullscreen() {
+  if (isFullscreen.value) {
+    exitFullscreen()
+  } else {
+    enterFullscreen()
+  }
+}
+
+function enterFullscreen() {
+  if (!playerContainerRef.value) return
+  
+  const element = playerContainerRef.value
+  
+  try {
+    if (element.requestFullscreen) {
+      element.requestFullscreen()
+    } else if ((element as any).webkitRequestFullscreen) {
+      (element as any).webkitRequestFullscreen()
+    } else if ((element as any).mozRequestFullScreen) {
+      (element as any).mozRequestFullScreen()
+    } else if ((element as any).msRequestFullscreen) {
+      (element as any).msRequestFullscreen()
+    }
+  } catch (err) {
+    console.error('Failed to enter fullscreen:', err)
+  }
+}
+
+function exitFullscreen() {
+  try {
+    if (document.exitFullscreen) {
+      document.exitFullscreen()
+    } else if ((document as any).webkitExitFullscreen) {
+      (document as any).webkitExitFullscreen()
+    } else if ((document as any).mozCancelFullScreen) {
+      (document as any).mozCancelFullScreen()
+    } else if ((document as any).msExitFullscreen) {
+      (document as any).msExitFullscreen()
+    }
+  } catch (err) {
+    console.error('Failed to exit fullscreen:', err)
+  }
+}
+
+// Handle fullscreen state changes
+function handleFullscreenChange() {
+  const fullscreenEl = document.fullscreenElement || 
+                      (document as any).webkitFullscreenElement || 
+                      (document as any).mozFullScreenElement || 
+                      (document as any).msFullscreenElement
+  
+  isFullscreen.value = !!fullscreenEl && fullscreenEl === playerContainerRef.value
+  console.log('🖥️ Fullscreen state changed:', isFullscreen.value)
 }
 
 function cleanup() {
@@ -352,6 +446,20 @@ function cleanup() {
 
 onUnmounted(() => {
   console.log('🏁 TorrentPlayer unmounting')
+  
+  // Clean up fullscreen event listeners
+  if (typeof window !== 'undefined') {
+    document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
+    document.removeEventListener('mozfullscreenchange', handleFullscreenChange)
+    document.removeEventListener('msfullscreenchange', handleFullscreenChange)
+  }
+  
+  // Exit fullscreen if active
+  if (isFullscreen.value) {
+    exitFullscreen()
+  }
+  
   cleanup()
 })
 </script>
