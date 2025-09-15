@@ -617,15 +617,6 @@ function toggleFullscreen() {
   }
 }
 
-// Fullscreen functionality
-function toggleFullscreen() {
-  if (isFullscreen.value) {
-    exitFullscreen()
-  } else {
-    enterFullscreen()
-  }
-}
-
 function enterFullscreen() {
   // Find the iframe element within the webtor container
   const webtorContainer = document.getElementById(playerId.value)
