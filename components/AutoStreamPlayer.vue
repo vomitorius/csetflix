@@ -204,6 +204,9 @@ const loadWebtorSDK = () => {
           iframe.style.border = 'none'
           iframe.allowFullscreen = true
           iframe.allow = 'autoplay; encrypted-media; fullscreen'
+          iframe.setAttribute('allowfullscreen', 'true')
+          iframe.setAttribute('webkitallowfullscreen', 'true')
+          iframe.setAttribute('mozallowfullscreen', 'true')
           element.innerHTML = ''
           element.appendChild(iframe)
           
@@ -614,24 +617,67 @@ function toggleFullscreen() {
   }
 }
 
-function enterFullscreen() {
-  if (!playerContainerRef.value) return
-  
-  const element = playerContainerRef.value
-  
-  try {
-    if (element.requestFullscreen) {
-      element.requestFullscreen()
-    } else if ((element as any).webkitRequestFullscreen) {
-      (element as any).webkitRequestFullscreen()
-    } else if ((element as any).mozRequestFullScreen) {
-      (element as any).mozRequestFullScreen()
-    } else if ((element as any).msRequestFullscreen) {
-      (element as any).msRequestFullscreen()
-    }
-  } catch (err) {
-    console.error('Failed to enter fullscreen:', err)
+// Fullscreen functionality
+function toggleFullscreen() {
+  if (isFullscreen.value) {
+    exitFullscreen()
+  } else {
+    enterFullscreen()
   }
+}
+
+function enterFullscreen() {
+  // Find the iframe element within the webtor container
+  const webtorContainer = document.getElementById(playerId.value)
+  if (!webtorContainer) {
+    console.error('Webtor container not found')
+    return
+  }
+  
+  // Function to attempt fullscreen on iframe
+  const attemptFullscreen = () => {
+    const iframe = webtorContainer.querySelector('iframe')
+    if (!iframe) {
+      return false
+    }
+    
+    try {
+      // Request fullscreen on the iframe element itself
+      if (iframe.requestFullscreen) {
+        iframe.requestFullscreen()
+      } else if ((iframe as any).webkitRequestFullscreen) {
+        (iframe as any).webkitRequestFullscreen()
+      } else if ((iframe as any).mozRequestFullScreen) {
+        (iframe as any).mozRequestFullScreen()
+      } else if ((iframe as any).msRequestFullscreen) {
+        (iframe as any).msRequestFullscreen()
+      }
+      console.log('🖥️ Requesting fullscreen for iframe')
+      return true
+    } catch (err) {
+      console.error('Failed to enter fullscreen:', err)
+      return false
+    }
+  }
+  
+  // Try immediately first
+  if (attemptFullscreen()) {
+    return
+  }
+  
+  // If iframe not found, wait a bit and try again (for when webtor is still loading)
+  console.log('🔄 Iframe not ready, waiting for webtor to load...')
+  let attempts = 0
+  const maxAttempts = 10
+  const retryInterval = setInterval(() => {
+    attempts++
+    if (attemptFullscreen() || attempts >= maxAttempts) {
+      clearInterval(retryInterval)
+      if (attempts >= maxAttempts) {
+        console.warn('⚠️ Could not find iframe for fullscreen after multiple attempts')
+      }
+    }
+  }, 500)
 }
 
 function exitFullscreen() {
@@ -657,7 +703,11 @@ function handleFullscreenChange() {
                       (document as any).mozFullScreenElement || 
                       (document as any).msFullscreenElement
   
-  isFullscreen.value = !!fullscreenEl && fullscreenEl === playerContainerRef.value
+  // Check if the fullscreen element is an iframe within our webtor container
+  const webtorContainer = document.getElementById(playerId.value)
+  const iframe = webtorContainer?.querySelector('iframe')
+  
+  isFullscreen.value = !!fullscreenEl && fullscreenEl === iframe
   console.log('🖥️ Auto player fullscreen state changed:', isFullscreen.value)
 }
 
