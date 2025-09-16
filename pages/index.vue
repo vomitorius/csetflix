@@ -15,14 +15,23 @@
           <h1 class="text-4xl md:text-5xl font-bold mb-6 text-white drop-shadow-md">CsetFlix</h1>
 
           <div class="flex flex-col sm:flex-row gap-3 justify-center mb-8">
-            <NuxtLink v-if="headerMovie" :to="`/movie/${headerMovie.id}`" class="btn bg-red-600 hover:bg-red-700 border-red-700 text-white btn-lg">
+            <NuxtLink 
+              v-if="headerMovie" 
+              ref="featuredButtonRef"
+              :to="`/movie/${headerMovie.id}`" 
+              class="btn bg-red-600 hover:bg-red-700 border-red-700 text-white btn-lg tv-focusable"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
               View Featured
             </NuxtLink>
-            <button @click="fetchRandomClassicMovie" class="btn bg-neutral-800 hover:bg-neutral-700 border-neutral-700 text-white btn-lg">
+            <button 
+              ref="randomButtonRef"
+              @click="fetchRandomClassicMovie" 
+              class="btn bg-neutral-800 hover:bg-neutral-700 border-neutral-700 text-white btn-lg tv-focusable"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
@@ -67,8 +76,9 @@
       <!-- Bottom Load More Button -->
       <div class="flex justify-center mt-12">
         <button
+          ref="loadMoreButtonRef"
           @click="loadMore"
-          class="btn border-red-700 bg-transparent hover:bg-red-800/30 text-red-500 hover:text-red-400 btn-lg px-8"
+          class="btn border-red-700 bg-transparent hover:bg-red-800/30 text-red-500 hover:text-red-400 btn-lg px-8 tv-focusable"
           :class="{ 'btn-disabled': moviesStore.loading }"
         >
           <span v-if="loadingMore" class="loading loading-spinner loading-sm mr-2"></span>
@@ -102,8 +112,9 @@
 
     <!-- Scroll to top button -->
     <button
+      ref="scrollTopButtonRef"
       @click="scrollToTop"
-      class="btn btn-circle bg-red-600 hover:bg-red-700 border-red-700 text-white btn-lg fixed bottom-6 right-6 shadow-xl z-50 animate-pulse-slow"
+      class="btn btn-circle bg-red-600 hover:bg-red-700 border-red-700 text-white btn-lg fixed bottom-6 right-6 shadow-xl z-50 animate-pulse-slow tv-focusable"
       v-show="showScrollTop"
     >
       <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -116,6 +127,7 @@
 <script setup lang="ts">
 import { useMoviesStore } from '~/stores/movies'
 import { useFavoritesStore } from '~/stores/favorites'
+import { useTVRemote } from '~/composables/useTVRemote'
 import axios from 'axios'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 
@@ -126,6 +138,14 @@ const currentPage = ref(1)
 const moviesPerPage = 16
 const loadingMore = ref(false)
 const showScrollTop = ref(false)
+
+// TV Remote support - refs for focusable elements
+const featuredButtonRef = ref<HTMLElement>()
+const randomButtonRef = ref<HTMLElement>()
+const loadMoreButtonRef = ref<HTMLElement>()
+const scrollTopButtonRef = ref<HTMLElement>()
+
+const { registerFocusable, initializeFocus } = useTVRemote()
 
 const displayedMovies = computed(() => {
   return moviesStore.trendingMovies.slice(0, currentPage.value * moviesPerPage)
@@ -207,6 +227,36 @@ onMounted(async () => {
 
   // Add scroll event listener
   window.addEventListener('scroll', handleScroll)
+
+  // Register TV remote focusable elements
+  const unregisterCallbacks: (() => void)[] = []
+  
+  if (featuredButtonRef.value && featuredButtonRef.value.$el) {
+    unregisterCallbacks.push(registerFocusable(featuredButtonRef.value.$el, 'featured-button', 8))
+  } else if (featuredButtonRef.value) {
+    unregisterCallbacks.push(registerFocusable(featuredButtonRef.value, 'featured-button', 8))
+  }
+  
+  if (randomButtonRef.value) {
+    unregisterCallbacks.push(registerFocusable(randomButtonRef.value, 'random-button', 8))
+  }
+  if (loadMoreButtonRef.value) {
+    unregisterCallbacks.push(registerFocusable(loadMoreButtonRef.value, 'load-more-button', 5))
+  }
+  if (scrollTopButtonRef.value) {
+    unregisterCallbacks.push(registerFocusable(scrollTopButtonRef.value, 'scroll-top-button', 3))
+  }
+
+  // Initialize focus after a short delay to ensure all movie cards are registered
+  setTimeout(() => {
+    initializeFocus()
+  }, 100)
+  
+  onUnmounted(() => {
+    // Remove scroll event listener when component is destroyed
+    window.removeEventListener('scroll', handleScroll)
+    unregisterCallbacks.forEach(callback => callback())
+  })
 })
 
 onUnmounted(() => {

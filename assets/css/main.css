@@ -21,4 +21,36 @@
   .navbar-item {
     @apply px-4 py-2 hover:text-red-500 transition-colors;
   }
+
+  /* TV Remote Focus Styles */
+  .tv-focus {
+    @apply ring-4 ring-red-500 ring-opacity-75 scale-105 z-10;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .tv-focusable {
+    @apply transition-all duration-200 ease-in-out;
+    outline: none;
+  }
+
+  .tv-focusable:focus-visible {
+    @apply ring-2 ring-red-500 ring-opacity-50;
+  }
+
+  /* Enhanced focus for cards */
+  .tv-focus .card {
+    @apply bg-neutral-700;
+  }
+
+  /* Focus indicators for buttons and interactive elements */
+  .tv-focus.btn,
+  .tv-focus button {
+    @apply bg-red-600 text-white;
+  }
+
+  /* Focus for navigation items */
+  .tv-focus.nav-item {
+    @apply bg-red-600 text-white rounded-lg;
+  }
 }
