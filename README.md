@@ -1,6 +1,6 @@
 # CsetFlix
 
-CsetFlix is a modern web application that combines movie browsing. It integrates with The Movie Database (TMDB) for movie information.
+CsetFlix is a modern web application that mafe dor movie browsing. It integrates with The Movie Database (TMDB) for movie information.
 
 ## Features
 
