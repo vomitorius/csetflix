@@ -8,16 +8,38 @@
           <h3 class="text-white text-lg md:text-xl font-semibold truncate flex-1 mr-4">
             {{ movieTitle }}
           </h3>
-          <button 
-            @click="closePlayer"
-            class="text-white hover:text-red-400 text-2xl md:text-3xl flex-shrink-0 w-8 h-8 flex items-center justify-center"
-          >
-            ×
-          </button>
+          <div class="flex items-center gap-2">
+            <!-- Change Source Button - New Feature! -->
+            <button 
+              @click="changeSource"
+              class="text-white hover:text-orange-400 text-sm md:text-base px-2 py-1 rounded transition-colors border border-gray-600 hover:border-orange-400"
+              :title="`Change source (${currentSourceIndex + 1}/${availableTorrents.length})`"
+              v-if="currentStep >= 4 && availableTorrents.length > 1"
+              :disabled="isChangingSource"
+            >
+              <span v-if="isChangingSource" class="flex items-center gap-1">
+                <div class="loading loading-spinner loading-xs"></div>
+                <span class="hidden md:inline">Switching...</span>
+              </span>
+              <span v-else class="flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span class="hidden md:inline">Source {{ currentSourceIndex + 1 }}/{{ availableTorrents.length }}</span>
+                <span class="md:hidden">{{ currentSourceIndex + 1 }}/{{ availableTorrents.length }}</span>
+              </span>
+            </button>
+            <button 
+              @click="closePlayer"
+              class="text-white hover:text-red-400 text-2xl md:text-3xl flex-shrink-0 w-8 h-8 flex items-center justify-center"
+            >
+              ×
+            </button>
+          </div>
         </div>
         
         <!-- Loading State -->
-        <div v-if="currentStep < 4" class="flex-1 flex items-center justify-center p-4">
+        <div v-if="currentStep < loadingSteps.length" class="flex-1 flex items-center justify-center p-4">
           <div class="text-center text-white max-w-md">
             <div class="loading loading-spinner loading-lg text-red-600 mb-4"></div>
             <p class="text-lg mb-2">{{ loadingSteps[currentStep].text }}</p>
@@ -107,7 +129,7 @@
         </div>
         
         <!-- Stream Info Footer -->
-        <div v-if="currentStep >= 4" class="p-3 md:p-4 bg-gray-800 text-white text-xs md:text-sm flex-shrink-0">
+        <div v-if="currentStep >= loadingSteps.length" class="p-3 md:p-4 bg-gray-800 text-white text-xs md:text-sm flex-shrink-0">
           <div class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
             <div class="truncate">
               <span class="text-gray-400">Quality:</span> {{ bestTorrent.quality }}
@@ -119,8 +141,14 @@
               <span class="text-gray-400">Seeders:</span> {{ bestTorrent.seeders }}
             </div>
             <div class="truncate">
-              <span class="text-gray-400">Status:</span> {{ hasPlayed ? 'Streaming' : 'Ready' }}
+              <span class="text-gray-400">Source:</span> {{ bestTorrent.source }}
             </div>
+          </div>
+          <!-- Source change hint -->
+          <div v-if="availableTorrents.length > 1" class="mt-2 p-2 bg-blue-900/30 rounded text-center">
+            <p class="text-xs text-blue-300">
+              🎯 <strong>New Feature:</strong> Use the "Source {{ currentSourceIndex + 1 }}/{{ availableTorrents.length }}" button above to switch between {{ availableTorrents.length }} available torrents!
+            </p>
           </div>
         </div>
       </div>
@@ -147,6 +175,11 @@ const hasPlayed = ref(false)
 const progress = ref(0)
 const playbackTime = ref('00:00')
 
+// New source switching variables
+const availableTorrents = ref<any[]>([])
+const currentSourceIndex = ref(0)
+const isChangingSource = ref(false)
+
 const loadingSteps = [
   {
     text: 'Finding best stream...',
@@ -154,7 +187,7 @@ const loadingSteps = [
   },
   {
     text: 'Analyzing torrents...',
-    detail: 'Found 12 torrents, selecting best quality...'
+    detail: 'Found 4 torrents, selecting best quality...'
   },
   {
     text: 'Preparing stream...',
@@ -166,12 +199,41 @@ const loadingSteps = [
   }
 ]
 
-const bestTorrent = {
-  name: 'Inception.2010.1080p.BluRay.x264-YIFY',
-  quality: '1080p',
-  size: '2.1 GB',
-  seeders: 847
-}
+// Mock torrents with multiple sources
+const mockTorrents = [
+  {
+    name: 'Indiana.Jones.Temple.Doom.1984.1080p.BluRay.x264-YIFY',
+    quality: '1080p',
+    size: '2.1 GB',
+    seeders: 847,
+    source: 'YIFY'
+  },
+  {
+    name: 'Indiana.Jones.and.the.Temple.of.Doom.1984.1080p.BluRay.H264.AAC-RARBG',
+    quality: '1080p', 
+    size: '2.3 GB',
+    seeders: 623,
+    source: 'RARBG'
+  },
+  {
+    name: 'Indiana Jones Temple of Doom 1984 720p BrRip x264-ETRG',
+    quality: '720p',
+    size: '1.2 GB', 
+    seeders: 445,
+    source: 'ETRG'
+  },
+  {
+    name: 'Indiana.Jones.Temple.Doom.1984.1080p.BluRay.x265-RARBG',
+    quality: '1080p',
+    size: '1.8 GB',
+    seeders: 289,
+    source: 'RARBG'
+  }
+]
+
+const bestTorrent = computed(() => {
+  return availableTorrents.value[currentSourceIndex.value] || mockTorrents[0]
+})
 
 let stepInterval: NodeJS.Timeout | null = null
 let progressInterval: NodeJS.Timeout | null = null
@@ -191,9 +253,14 @@ function startDemo() {
   progress.value = 0
   playbackTime.value = '00:00'
   
+  // Initialize available torrents for source switching
+  availableTorrents.value = mockTorrents
+  currentSourceIndex.value = 0
+  isChangingSource.value = false
+  
   // Simulate loading steps
   stepInterval = setInterval(() => {
-    if (currentStep.value < loadingSteps.length - 1) {
+    if (currentStep.value < loadingSteps.length) {
       currentStep.value++
     } else {
       if (stepInterval) {
@@ -202,6 +269,51 @@ function startDemo() {
       }
     }
   }, 1500)
+}
+
+async function changeSource() {
+  if (isChangingSource.value || availableTorrents.value.length <= 1) return
+  
+  try {
+    isChangingSource.value = true
+    console.log('🔄 Demo: Changing torrent source...')
+    
+    // Move to next torrent in the list
+    const oldIndex = currentSourceIndex.value
+    currentSourceIndex.value = (currentSourceIndex.value + 1) % availableTorrents.value.length
+    const newTorrent = bestTorrent.value
+    
+    console.log('🎯 Demo: Switching to torrent:', {
+      name: newTorrent.name.substring(0, 60),
+      seeders: newTorrent.seeders,
+      source: newTorrent.source,
+      index: currentSourceIndex.value + 1,
+      total: availableTorrents.value.length
+    })
+    
+    // Reset playback state for the demo
+    hasPlayed.value = false
+    progress.value = 0
+    playbackTime.value = '00:00'
+    
+    // Clear any existing progress interval
+    if (progressInterval) {
+      clearInterval(progressInterval)
+      progressInterval = null
+    }
+    
+    // Simulate switching delay
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    
+    console.log('✅ Demo: Successfully switched to new torrent source')
+    
+  } catch (err) {
+    console.error('❌ Demo: Failed to change source:', err)
+    // Revert to previous source on error
+    currentSourceIndex.value = currentSourceIndex.value > 0 ? currentSourceIndex.value - 1 : availableTorrents.value.length - 1
+  } finally {
+    isChangingSource.value = false
+  }
 }
 
 function simulatePlay() {
@@ -249,6 +361,11 @@ function cleanup() {
   hasPlayed.value = false
   progress.value = 0
   playbackTime.value = '00:00'
+  
+  // Reset source switching state
+  availableTorrents.value = []
+  currentSourceIndex.value = 0
+  isChangingSource.value = false
 }
 
 onUnmounted(() => {

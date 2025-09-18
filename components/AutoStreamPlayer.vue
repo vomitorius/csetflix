@@ -9,6 +9,26 @@
             {{ movieTitle || 'Loading...' }}
           </h3>
           <div class="flex items-center gap-2">
+            <!-- Change Source Button -->
+            <button 
+              @click="changeSource"
+              class="text-white hover:text-orange-400 text-sm md:text-base px-2 py-1 rounded transition-colors border border-gray-600 hover:border-orange-400"
+              :title="`Change source (${currentSourceIndex + 1}/${availableTorrents.length})`"
+              v-if="!isLoading && !error && availableTorrents.length > 1"
+              :disabled="isChangingSource"
+            >
+              <span v-if="isChangingSource" class="flex items-center gap-1">
+                <div class="loading loading-spinner loading-xs"></div>
+                <span class="hidden md:inline">Switching...</span>
+              </span>
+              <span v-else class="flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span class="hidden md:inline">Source {{ currentSourceIndex + 1 }}/{{ availableTorrents.length }}</span>
+                <span class="md:hidden">{{ currentSourceIndex + 1 }}/{{ availableTorrents.length }}</span>
+              </span>
+            </button>
             <!-- Fullscreen Button -->
             <button 
               @click="toggleFullscreen"
@@ -155,6 +175,11 @@ const magnetUri = ref('')
 const webtorUrl = ref('')
 const isFullscreen = ref(false)
 const playerContainerRef = ref<HTMLDivElement>()
+
+// New variables for source switching
+const availableTorrents = ref<any[]>([])
+const currentSourceIndex = ref(0)
+const isChangingSource = ref(false)
 
 const searchProgress = ref({
   current: 0,
@@ -315,8 +340,12 @@ async function searchTorrents() {
     }
     
     // Select best torrent based on seeders and quality
-    bestTorrent.value = selectBestTorrent(allTorrents)
+    const allTorrentsList = selectBestTorrents(allTorrents)
+    availableTorrents.value = allTorrentsList
+    currentSourceIndex.value = 0
+    bestTorrent.value = allTorrentsList[0]
     console.log('🏆 Selected best torrent:', bestTorrent.value.name)
+    console.log('📋 Available alternatives:', allTorrentsList.length)
     
   } catch (err) {
     console.error('❌ Search failed:', err)
@@ -324,7 +353,7 @@ async function searchTorrents() {
   }
 }
 
-function selectBestTorrent(torrents: any[]) {
+function selectBestTorrents(torrents: any[]) {
   // Filter out torrents with very low seeders and invalid resolutions
   const viable = torrents.filter(t => {
     const seeders = t.seeders || 0
@@ -350,7 +379,7 @@ function selectBestTorrent(torrents: any[]) {
   
   if (viable.length === 0) {
     console.warn('⚠️ No viable torrents found, using first available')
-    return torrents[0] // Return first available if all are filtered out
+    return torrents.slice(0, 5) // Return first 5 available if all are filtered out
   }
   
   // Score torrents based on multiple factors with focus on seeders and 1080p max
@@ -418,7 +447,8 @@ function selectBestTorrent(torrents: any[]) {
     name: t.name?.substring(0, 60), 
     seeders: t.seeders, 
     score: Math.round(t.score * 10) / 10,
-    size: t.size
+    size: t.size,
+    source: t.source
   })))
   
   const selected = scored[0]
@@ -429,7 +459,8 @@ function selectBestTorrent(torrents: any[]) {
     source: selected.source
   })
   
-  return selected
+  // Return top 10 alternatives for source switching
+  return scored.slice(0, 10)
 }
 
 function validateTorrentForMovie(torrent: any, movieTitle: string): boolean {
@@ -702,6 +733,69 @@ function handleFullscreenChange() {
   console.log('🖥️ Auto player fullscreen state changed:', isFullscreen.value)
 }
 
+async function changeSource() {
+  if (isChangingSource.value || availableTorrents.value.length <= 1) return
+  
+  try {
+    isChangingSource.value = true
+    console.log('🔄 Changing torrent source...')
+    
+    // Move to next torrent in the list
+    currentSourceIndex.value = (currentSourceIndex.value + 1) % availableTorrents.value.length
+    const newTorrent = availableTorrents.value[currentSourceIndex.value]
+    
+    console.log('🎯 Switching to torrent:', {
+      name: newTorrent.name?.substring(0, 80),
+      seeders: newTorrent.seeders,
+      source: newTorrent.source,
+      index: currentSourceIndex.value + 1,
+      total: availableTorrents.value.length
+    })
+    
+    // Update current torrent
+    bestTorrent.value = newTorrent
+    
+    // Clear existing player
+    const playerElement = document.getElementById(playerId.value)
+    if (playerElement) {
+      playerElement.innerHTML = ''
+    }
+    
+    // Get new magnet URI
+    await getMagnetUri()
+    
+    if (!magnetUri.value) {
+      throw new Error('Failed to get magnet link for new source')
+    }
+    
+    // Create new player ID to ensure fresh webtor instance
+    playerId.value = `webtor-auto-${Date.now()}`
+    
+    // Wait for DOM update
+    await nextTick()
+    
+    // Setup webtor with new source
+    webtorLoading.value = true
+    await setupWebtor()
+    
+    console.log('✅ Successfully switched to new torrent source')
+    
+  } catch (err) {
+    console.error('❌ Failed to change source:', err)
+    // Revert to previous source on error
+    currentSourceIndex.value = currentSourceIndex.value > 0 ? currentSourceIndex.value - 1 : availableTorrents.value.length - 1
+    bestTorrent.value = availableTorrents.value[currentSourceIndex.value]
+    
+    // Show error message briefly
+    error.value = 'Failed to switch source. Reverted to previous.'
+    setTimeout(() => {
+      error.value = ''
+    }, 3000)
+  } finally {
+    isChangingSource.value = false
+  }
+}
+
 function cleanup() {
   console.log('🧹 Cleaning up auto stream...')
   
@@ -721,6 +815,11 @@ function cleanup() {
   webtorUrl.value = ''
   playerId.value = `webtor-auto-${Date.now()}`
   searchProgress.value.current = 0
+  
+  // Reset source switching state
+  availableTorrents.value = []
+  currentSourceIndex.value = 0
+  isChangingSource.value = false
   
   // Reset torrent store state
   torrentStore.resetSearchState()
