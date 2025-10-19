@@ -235,7 +235,7 @@
                             <NuxtLink
                               v-for="person in directors"
                               :key="person.id"
-                              :to="`/search?q=${encodeURIComponent(person.name)}`"
+                              :to="`/person/${person.id}`"
                               class="badge badge-outline hover:bg-red-600 hover:text-white hover:border-red-700 cursor-pointer transition-colors duration-200"
                             >
                               {{ person.name }}
@@ -250,7 +250,7 @@
                             <NuxtLink
                               v-for="actor in topCast"
                               :key="actor.id"
-                              :to="`/search?q=${encodeURIComponent(actor.name)}`"
+                              :to="`/person/${actor.id}`"
                               class="badge badge-outline hover:bg-red-600 hover:text-white hover:border-red-700 cursor-pointer transition-colors duration-200"
                             >
                               {{ actor.name }}
