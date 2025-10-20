@@ -45,9 +45,6 @@
 
           <div>
             <h1 class="text-3xl md:text-4xl font-bold mb-2">{{ person.name }}</h1>
-            <p v-if="person.also_known_as?.length" class="text-sm text-neutral-400">
-              Also known as: {{ person.also_known_as.join(', ') }}
-            </p>
           </div>
 
           <div v-if="person.biography" class="prose prose-invert max-w-none">
