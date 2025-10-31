@@ -57,6 +57,3 @@ npm run dev
 - Visit the homepage to see trending movies
 - Use the search feature to find specific titles
 - Click on a movie to view details
-- Click on "Ncore" button on movie detail page to search and stream from ncore.pro (requires valid ncore.pro account)
-- **New:** Ncore integration now runs natively in Node.js (no Python required)
-
