@@ -121,12 +121,15 @@
 </template>
 
 <script setup lang="ts">
-// Add global WebTorrent type declaration
-// Note: Using 'any' for WebTorrent types as @types/webtorrent is not available
-// In the future, consider creating custom type definitions for better type safety
+// WebTorrent type definitions
+// Note: @types/webtorrent is not available, so we define our own interfaces
+interface WebTorrentConstructor {
+  new(): WebTorrentClient
+}
+
 declare global {
   interface Window {
-    WebTorrent: any
+    WebTorrent: WebTorrentConstructor
   }
 }
 
@@ -166,6 +169,13 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   close: []
 }>()
+
+// Default WebTorrent trackers
+const DEFAULT_TRACKERS = [
+  'wss://tracker.btorrent.xyz',
+  'wss://tracker.openwebtorrent.com',
+  'wss://tracker.webtorrent.io'
+]
 
 const videoElement = ref<HTMLVideoElement>()
 const isLoading = ref(true)
@@ -257,14 +267,8 @@ async function initializeStream() {
       statusText.value = 'Magnet link feldolgozása'
       
       // Add torrent with WebTorrent trackers
-      const defaultTrackers = [
-        'wss://tracker.btorrent.xyz',
-        'wss://tracker.openwebtorrent.com',
-        'wss://tracker.webtorrent.io'
-      ]
-      
       torrent = client.add(props.magnetLink, {
-        announce: defaultTrackers
+        announce: DEFAULT_TRACKERS
       })
       
       setupTorrentEvents()
