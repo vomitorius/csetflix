@@ -333,7 +333,9 @@ export class NcoreClient {
       console.log('[NcoreClient] Total trackers:', trackers.size)
       
       // Append all trackers to magnet link
-      for (const tracker of trackers) {
+      // Convert Set to Array for compatibility with older TypeScript targets
+      const trackerList = Array.from(trackers)
+      for (const tracker of trackerList) {
         magnet += `&tr=${encodeURIComponent(tracker)}`
       }
       
