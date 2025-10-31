@@ -180,6 +180,12 @@
                 <h2 class="card-title text-xl mb-2">Watch Now</h2>
                 <p class="mb-4">Stream "{{ movie.title }}" instantly:</p>
                 <div class="flex gap-3 flex-wrap">
+                  <button @click="openNcoreSearch" class="btn btn-success">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Ncore
+                  </button>
                   <button @click="watchMovie" class="btn btn-primary">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m2-7a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -368,6 +374,22 @@
       :is-visible="showStreamPlayer"
       @close="closeStreamPlayer"
     />
+    
+    <!-- Ncore Search Modal -->
+    <NcoreSearchModal
+      :movie-title="movie.title"
+      :is-visible="showNcoreSearch"
+      @close="closeNcoreSearch"
+      @play="playNcoreTorrent"
+    />
+    
+    <!-- Ncore Stream Player -->
+    <NcoreStreamPlayer
+      :movie-title="movie.title"
+      :magnet-link="ncoreMagnetLink"
+      :is-visible="showNcorePlayer"
+      @close="closeNcorePlayer"
+    />
   </div>
 </template>
 
@@ -491,6 +513,11 @@ const selectedImageIndex = ref(0)
 // Auto Stream Player state
 const showStreamPlayer = ref(false)
 
+// Ncore state
+const showNcoreSearch = ref(false)
+const showNcorePlayer = ref(false)
+const ncoreMagnetLink = ref('')
+
 // Display limited images initially
 const displayedImages = computed(() => {
   return showAllImages.value 
@@ -515,6 +542,28 @@ function watchMovie() {
 function closeStreamPlayer() {
   console.log('🚪 Closing stream player')
   showStreamPlayer.value = false
+}
+
+function openNcoreSearch() {
+  console.log('🟢 Opening Ncore search for:', movie.value.title)
+  showNcoreSearch.value = true
+}
+
+function closeNcoreSearch() {
+  console.log('🚪 Closing Ncore search')
+  showNcoreSearch.value = false
+}
+
+function playNcoreTorrent(magnetLink: string) {
+  console.log('🎬 Playing Ncore torrent')
+  ncoreMagnetLink.value = magnetLink
+  showNcorePlayer.value = true
+}
+
+function closeNcorePlayer() {
+  console.log('🚪 Closing Ncore player')
+  showNcorePlayer.value = false
+  ncoreMagnetLink.value = ''
 }
 
 function goBack() {

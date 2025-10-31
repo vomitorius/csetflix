@@ -21,6 +21,10 @@ export default defineNuxtConfig({
   ],
   
   runtimeConfig: {
+    // Private keys - only available on server-side
+    ncoreUsername: process.env.NCORE_USERNAME || '',
+    ncorePassword: process.env.NCORE_PASSWORD || '',
+    
     public: {
       tmdbApiKey: process.env.TMDB_API_KEY || '262d5ff6a75ab6f20cf8594e41b2ac86',
       tmdbApiBaseUrl: 'https://api.themoviedb.org/3',
