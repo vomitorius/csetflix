@@ -17,16 +17,17 @@ export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig()
     const username = process.env.NCORE_USERNAME || config.ncoreUsername
     const password = process.env.NCORE_PASSWORD || config.ncorePassword
+    const passkey = process.env.NCORE_PASSKEY || config.ncorePasskey
 
-    if (!username || !password) {
+    if (!username || !password || !passkey) {
       return {
         success: false,
-        error: 'Ncore credentials not configured. Please set NCORE_USERNAME and NCORE_PASSWORD in .env file'
+        error: 'Ncore credentials not configured. Please set NCORE_USERNAME, NCORE_PASSWORD and NCORE_PASSKEY in .env file'
       }
     }
 
     // Use TypeScript Ncore client (no Python required)
-    const client = new NcoreClient(username, password)
+    const client = new NcoreClient(username, password, passkey)
     const result = await client.getMagnetLink(torrentId)
     
     // Logout after getting magnet link
