@@ -2,7 +2,7 @@
  * Ncore.pro Client - TypeScript implementation
  * Replaces Python ncoreparser library for serverless environments
  */
-import axios, { AxiosInstance } from 'axios'
+import axios, { type AxiosInstance } from 'axios'
 import { wrapper } from 'axios-cookiejar-support'
 import { CookieJar } from 'tough-cookie'
 import { parse } from 'node-html-parser'
@@ -281,11 +281,14 @@ export class NcoreClient {
       // Build magnet link
       let magnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(name)}`
       
-      // Add tracker URLs
+      // Collect all trackers in a Set to avoid duplicates
+      const trackers = new Set<string>()
+      
+      // Add tracker URLs from torrent file
       if (torrentData.announce) {
         const tracker = torrentData.announce.toString('utf-8')
-        magnet += `&tr=${encodeURIComponent(tracker)}`
-        console.log('[NcoreClient] Added tracker:', tracker)
+        trackers.add(tracker)
+        console.log('[NcoreClient] Added original tracker:', tracker)
       }
       
       // Add announce list trackers
@@ -294,14 +297,47 @@ export class NcoreClient {
           if (Array.isArray(tierList)) {
             for (const trackerBuffer of tierList) {
               const tracker = trackerBuffer.toString('utf-8')
-              magnet += `&tr=${encodeURIComponent(tracker)}`
+              trackers.add(tracker)
             }
           }
         }
-        console.log('[NcoreClient] Added', torrentData['announce-list'].length, 'tracker tiers')
+        console.log('[NcoreClient] Added', torrentData['announce-list'].length, 'tracker tiers from torrent')
       }
       
-      console.log('[NcoreClient] Magnet link created successfully')
+      // Add public trackers to improve peer discovery for Webtor.io
+      // These are reliable, high-performance public trackers that help with magnetization
+      const publicTrackers = [
+        'udp://tracker.opentrackr.org:1337/announce',
+        'udp://open.stealth.si:80/announce',
+        'udp://tracker.torrent.eu.org:451/announce',
+        'udp://tracker.bittor.pw:1337/announce',
+        'udp://public.popcorn-tracker.org:6969/announce',
+        'udp://tracker.dler.org:6969/announce',
+        'udp://exodus.desync.com:6969/announce',
+        'udp://open.demonii.com:1337/announce',
+        'udp://tracker.openbittorrent.com:6969/announce',
+        'udp://tracker.internetwarriors.net:1337/announce',
+        'udp://tracker.leechers-paradise.org:6969/announce',
+        'udp://tracker.coppersurfer.tk:6969/announce',
+        'udp://tracker.zer0day.to:1337/announce',
+        'udp://eddie4.nl:6969/announce',
+        'wss://tracker.openwebtorrent.com',
+        'wss://tracker.webtorrent.dev',
+        'wss://tracker.files.fm:7073/announce'
+      ]
+      
+      for (const tracker of publicTrackers) {
+        trackers.add(tracker)
+      }
+      
+      console.log('[NcoreClient] Total trackers:', trackers.size)
+      
+      // Append all trackers to magnet link
+      for (const tracker of trackers) {
+        magnet += `&tr=${encodeURIComponent(tracker)}`
+      }
+      
+      console.log('[NcoreClient] Magnet link created successfully with', trackers.size, 'trackers')
       return magnet
     } catch (error: any) {
       console.error('[NcoreClient] Error converting torrent to magnet:', error)
