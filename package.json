@@ -27,7 +27,7 @@
     "tough-cookie": "^5.1.2",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0",
-    "webtorrent": "^2.6.10"
+    "webtorrent": "^2.8.4"
   },
   "devDependencies": {
     "crypto-browserify": "^3.12.1",
