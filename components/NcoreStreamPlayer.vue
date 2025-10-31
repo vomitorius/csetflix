@@ -1,4 +1,4 @@
-<!-- Ncore Stream Player - Plays torrents from Ncore -->
+<!-- Ncore Stream Player - Plays torrents from Ncore using native WebTorrent -->
 <template>
   <div v-if="isVisible" class="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center z-50">
     <div ref="playerContainerRef" class="w-full h-full max-w-7xl max-h-screen p-2 md:p-4" :class="{ 'max-w-none p-0': isFullscreen }">
@@ -8,7 +8,7 @@
           <div class="flex items-center gap-3">
             <div class="bg-green-600 text-white px-3 py-1 rounded font-bold text-sm">NCORE</div>
             <h3 class="text-white text-lg md:text-xl font-semibold truncate flex-1 mr-4">
-              {{ movieTitle || 'Loading...' }}
+              {{ displayTitle || 'Loading...' }}
             </h3>
           </div>
           <div class="flex items-center gap-2">
@@ -17,7 +17,7 @@
               @click="toggleFullscreen"
               class="text-white hover:text-blue-400 text-xl p-1 rounded transition-colors"
               :title="isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'"
-              v-if="!isLoading && !error"
+              v-if="!isLoading && !error && videoElement"
             >
               <svg v-if="isFullscreen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -42,6 +42,15 @@
             <div class="loading loading-spinner loading-lg text-green-600 mb-4"></div>
             <p class="text-lg mb-2">{{ loadingText }}</p>
             <p class="text-sm text-gray-400 mt-2">{{ statusText }}</p>
+            <div v-if="downloadProgress > 0" class="mt-4">
+              <div class="w-64 bg-gray-700 rounded-full h-2 mx-auto">
+                <div 
+                  class="bg-green-600 h-2 rounded-full transition-all duration-300" 
+                  :style="{ width: downloadProgress + '%' }"
+                ></div>
+              </div>
+              <p class="text-xs text-gray-400 mt-2">{{ downloadProgress.toFixed(1) }}% letöltve</p>
+            </div>
           </div>
         </div>
         
@@ -59,12 +68,6 @@
                 Újra próbálkozás
               </button>
               <button 
-                @click="openWebtorInNewTab"
-                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm md:text-base"
-              >
-                Megnyitás Webtor.io-n
-              </button>
-              <button 
                 @click="closePlayer"
                 class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm md:text-base"
               >
@@ -74,29 +77,42 @@
           </div>
         </div>
         
-        <!-- Webtor SDK Player Container -->
+        <!-- Video Player -->
         <div v-else class="flex-1 min-h-0 relative">
-          <div 
-            :id="playerId" 
-            class="webtor w-full h-full bg-gray-900"
-            :class="{ 'opacity-0': webtorLoading }"
+          <video
+            ref="videoElement"
+            class="w-full h-full bg-black"
+            controls
+            autoplay
+            @loadstart="onVideoLoadStart"
+            @loadeddata="onVideoLoaded"
+            @error="onVideoError"
           />
-          
-          <!-- Loading overlay for Webtor player -->
-          <div v-if="webtorLoading" class="absolute inset-0 flex items-center justify-center bg-gray-900">
-            <div class="text-center text-white">
-              <div class="loading loading-spinner loading-lg text-green-600 mb-4"></div>
-              <p class="text-lg mb-2">Lejátszó inicializálása</p>
-              <p class="text-sm text-gray-400">Stream beállítása...</p>
-            </div>
-          </div>
         </div>
         
         <!-- Stream Info Footer -->
         <div v-if="!isLoading && !error" class="p-3 md:p-4 bg-gray-800 text-white text-xs md:text-sm flex-shrink-0">
-          <div class="flex items-center gap-4">
-            <span class="text-gray-400">Forrás:</span>
-            <span class="text-green-400 font-semibold">Ncore.pro</span>
+          <div class="flex items-center gap-4 flex-wrap">
+            <div class="flex items-center gap-2">
+              <span class="text-gray-400">Forrás:</span>
+              <span class="text-green-400 font-semibold">Ncore.pro</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-gray-400">Állapot:</span>
+              <span class="text-green-400">{{ streamStatus }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-gray-400">Peers:</span>
+              <span class="text-blue-400">{{ peerCount }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-gray-400">Letöltés:</span>
+              <span class="text-blue-400">{{ downloadSpeed }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-gray-400">Feltöltés:</span>
+              <span class="text-blue-400">{{ uploadSpeed }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -105,6 +121,13 @@
 </template>
 
 <script setup lang="ts">
+// Add global WebTorrent type declaration
+declare global {
+  interface Window {
+    WebTorrent: any
+  }
+}
+
 interface Props {
   movieTitle?: string
   magnetLink: string
@@ -120,75 +143,42 @@ const emit = defineEmits<{
   close: []
 }>()
 
+const videoElement = ref<HTMLVideoElement>()
 const isLoading = ref(true)
 const error = ref<string>('')
 const loadingText = ref('Lejátszás indítása...')
-const statusText = ref('Webtor lejátszó betöltése')
-const webtorLoading = ref(false)
-const playerId = ref(`webtor-ncore-${Date.now()}`)
-const webtorUrl = ref('')
+const statusText = ref('WebTorrent inicializálása')
 const isFullscreen = ref(false)
 const playerContainerRef = ref<HTMLDivElement>()
+const displayTitle = ref('')
+const streamStatus = ref('Kapcsolódás')
+const downloadProgress = ref(0)
+const peerCount = ref(0)
+const downloadSpeed = ref('0 B/s')
+const uploadSpeed = ref('0 B/s')
 
-// Load Webtor SDK script
-const loadWebtorSDK = () => {
-  return new Promise<void>((resolve, reject) => {
-    if (typeof window !== 'undefined' && (window as any).webtor) {
+let client: any = null
+let torrent: any = null
+
+// Load WebTorrent from CDN
+function loadWebTorrentFromCDN(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window !== 'undefined' && window.WebTorrent) {
       resolve()
       return
     }
-
-    const tryLoadFromCDN = () => {
-      const script = document.createElement('script')
-      script.src = 'https://cdn.jsdelivr.net/npm/@webtor/embed-sdk-js/dist/index.min.js'
-      script.charset = 'utf-8'
-      script.async = true
-      
-      script.onload = () => {
-        console.log('✅ Webtor SDK loaded successfully')
-        resolve()
-      }
-      
-      script.onerror = () => {
-        console.warn('⚠️ CDN blocked, using fallback...')
-        document.head.removeChild(script)
-        useFallbackImplementation()
-        resolve()
-      }
-      
-      document.head.appendChild(script)
+    
+    const script = document.createElement('script')
+    script.src = 'https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js'
+    script.onload = () => {
+      console.log('✅ WebTorrent loaded successfully')
+      resolve()
     }
-
-    const useFallbackImplementation = () => {
-      (window as any).webtor = (window as any).webtor || []
-      ;(window as any).webtor.push = function(config: any) {
-        const element = document.getElementById(config.id)
-        if (element) {
-          const encodedMagnet = encodeURIComponent(config.magnet)
-          const encodedTitle = encodeURIComponent(config.title || 'Movie')
-          const iframe = document.createElement('iframe')
-          iframe.src = `https://webtor.io/web?magnet=${encodedMagnet}&lang=en&title=${encodedTitle}&autoplay=1`
-          iframe.style.width = '100%'
-          iframe.style.height = '100%'
-          iframe.style.border = 'none'
-          iframe.allowFullscreen = true
-          iframe.allow = 'autoplay; encrypted-media; fullscreen'
-          iframe.setAttribute('allowfullscreen', 'true')
-          iframe.setAttribute('webkitallowfullscreen', 'true')
-          iframe.setAttribute('mozallowfullscreen', 'true')
-          element.innerHTML = ''
-          element.appendChild(iframe)
-          
-          setTimeout(() => {
-            if (config.on) {
-              config.on('ready', {})
-            }
-          }, 2000)
-        }
-      }
+    script.onerror = () => {
+      console.error('❌ Failed to load WebTorrent from CDN')
+      reject(new Error('Failed to load WebTorrent from CDN'))
     }
-
-    tryLoadFromCDN()
+    document.head.appendChild(script)
   })
 }
 
@@ -214,89 +204,127 @@ async function initializeStream() {
   
   isLoading.value = true
   error.value = ''
-  webtorLoading.value = false
   loadingText.value = 'Lejátszás indítása...'
-  statusText.value = 'Webtor lejátszó betöltése'
+  statusText.value = 'WebTorrent inicializálása'
+  streamStatus.value = 'Kapcsolódás'
+  displayTitle.value = props.movieTitle || 'Loading...'
   
   try {
     if (!props.magnetLink) {
       throw new Error('Nincs magnet link')
     }
     
-    // Create Webtor URL for fallback
-    const encodedMagnet = encodeURIComponent(props.magnetLink)
-    const encodedTitle = encodeURIComponent(props.movieTitle)
-    webtorUrl.value = `https://webtor.io/web?magnet=${encodedMagnet}&lang=en&title=${encodedTitle}&autoplay=1`
+    // Cleanup previous session
+    cleanup()
     
-    // Load Webtor SDK and setup player
-    await loadWebtorSDK()
-    webtorLoading.value = true
-    isLoading.value = false
-    
-    await nextTick()
-    await setupWebtor()
+    // Load WebTorrent from CDN if not already loaded
+    if (process.client) {
+      if (!window.WebTorrent) {
+        loadingText.value = 'WebTorrent betöltése...'
+        statusText.value = 'Torrent könyvtár betöltése'
+        await loadWebTorrentFromCDN()
+      }
+      
+      // Create WebTorrent client
+      statusText.value = 'Torrent kliens létrehozása...'
+      client = new window.WebTorrent()
+      
+      loadingText.value = 'Torrent hozzáadása...'
+      statusText.value = 'Magnet link feldolgozása'
+      
+      // Add torrent with WebTorrent trackers
+      torrent = client.add(props.magnetLink, {
+        announce: [
+          'wss://tracker.btorrent.xyz',
+          'wss://tracker.openwebtorrent.com',
+          'wss://tracker.webtorrent.io'
+        ]
+      })
+      
+      setupTorrentEvents()
+    } else {
+      error.value = 'WebTorrent böngésző környezetet igényel'
+      isLoading.value = false
+    }
     
   } catch (err) {
     console.error('❌ Stream failed:', err)
     error.value = (err as Error).message || 'Nem sikerült elindítani a lejátszást'
     isLoading.value = false
-    webtorLoading.value = false
   }
 }
 
-async function setupWebtor() {
-  try {
-    if (typeof window !== 'undefined' && (window as any).webtor) {
-      const webtor = (window as any).webtor = (window as any).webtor || []
+function setupTorrentEvents() {
+  if (!torrent) return
+  
+  torrent.on('metadata', () => {
+    console.log('📦 Torrent metadata fogadva')
+    loadingText.value = 'Videó fájl keresése...'
+    statusText.value = `${torrent!.files.length} fájl találva`
+    
+    // Find the largest video file
+    const videoFile = torrent!.files.find((file: any) => 
+      /\.(mp4|avi|mkv|mov|wmv|flv|webm|m4v)$/i.test(file.name)
+    ) || torrent!.files.reduce((largest: any, file: any) => 
+      file.length > largest.length ? file : largest
+    )
+    
+    if (videoFile) {
+      displayTitle.value = videoFile.name
+      loadingText.value = 'Videó stream előkészítése...'
+      statusText.value = `Streaming: ${videoFile.name}`
       
-      const playerConfig = {
-        id: playerId.value,
-        magnet: props.magnetLink,
-        title: props.movieTitle,
-        width: '100%',
-        height: '100%',
-        lang: 'en',
-        controls: true,
-        header: false,
-        autoplay: true,
-        on: (event: string, data: any) => {
-          console.log('🎮 Webtor event:', event, data)
-          
-          switch (event) {
-            case 'ready':
-              webtorLoading.value = false
-              console.log('✅ Player ready')
-              break
-            case 'error':
-              console.error('❌ Player error:', data)
-              error.value = data.message || 'Lejátszási hiba történt'
-              webtorLoading.value = false
-              break
-            case 'play':
-              console.log('▶️ Playback started')
-              break
-          }
-        }
+      // Render video to video element
+      if (videoElement.value) {
+        videoFile.renderTo(videoElement.value, {
+          autoplay: true,
+          controls: true
+        })
+        
+        // Hide loading after a short delay to allow video to start
+        setTimeout(() => {
+          isLoading.value = false
+          streamStatus.value = 'Streaming'
+        }, 1000)
       }
-      
-      console.log('🔧 Setting up Webtor player')
-      webtor.push(playerConfig)
-      
-      setTimeout(() => {
-        if (webtorLoading.value) {
-          console.log('⏰ Player setup timeout, considering ready')
-          webtorLoading.value = false
-        }
-      }, 10000)
-      
     } else {
-      throw new Error('Webtor SDK nem elérhető')
+      error.value = 'Nem található videó fájl a torrentben'
+      isLoading.value = false
     }
-  } catch (err) {
-    console.error('❌ Webtor setup failed:', err)
-    error.value = 'Nem sikerült beállítani a lejátszót'
-    webtorLoading.value = false
-  }
+  })
+  
+  torrent.on('download', () => {
+    if (torrent) {
+      downloadProgress.value = (torrent.progress * 100)
+      downloadSpeed.value = formatBytes(torrent.downloadSpeed) + '/s'
+      uploadSpeed.value = formatBytes(torrent.uploadSpeed) + '/s'
+    }
+  })
+  
+  torrent.on('wire', () => {
+    if (torrent) {
+      peerCount.value = torrent.numPeers
+    }
+  })
+  
+  torrent.on('error', (err: Error) => {
+    console.error('❌ Torrent hiba:', err)
+    error.value = 'Torrent hiba: ' + err.message
+    isLoading.value = false
+  })
+  
+  torrent.on('ready', () => {
+    console.log('✅ Torrent kész')
+    streamStatus.value = 'Kész'
+  })
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
 function retryStream() {
@@ -304,13 +332,21 @@ function retryStream() {
   cleanup()
   setTimeout(() => {
     initializeStream()
-  }, 1000)
+  }, 500)
 }
 
-function openWebtorInNewTab() {
-  if (webtorUrl.value) {
-    window.open(webtorUrl.value, '_blank')
-  }
+function onVideoLoadStart() {
+  console.log('📹 Videó betöltés indult')
+}
+
+function onVideoLoaded() {
+  console.log('✅ Videó sikeresen betöltve')
+  streamStatus.value = 'Lejátszás'
+}
+
+function onVideoError(event: Event) {
+  console.error('❌ Videó hiba:', event)
+  error.value = 'Videó lejátszási hiba. A fájl lehet, hogy sérült vagy nem támogatott formátumú.'
 }
 
 function closePlayer() {
@@ -318,6 +354,7 @@ function closePlayer() {
   if (isFullscreen.value) {
     exitFullscreen()
   }
+  cleanup()
   emit('close')
 }
 
@@ -330,40 +367,21 @@ function toggleFullscreen() {
 }
 
 function enterFullscreen() {
-  const webtorContainer = document.getElementById(playerId.value)
-  if (!webtorContainer) return
+  if (!videoElement.value) return
   
-  const attemptFullscreen = () => {
-    const iframe = webtorContainer.querySelector('iframe')
-    if (!iframe) return false
-    
-    try {
-      if (iframe.requestFullscreen) {
-        iframe.requestFullscreen()
-      } else if ((iframe as any).webkitRequestFullscreen) {
-        (iframe as any).webkitRequestFullscreen()
-      } else if ((iframe as any).mozRequestFullScreen) {
-        (iframe as any).mozRequestFullScreen()
-      } else if ((iframe as any).msRequestFullscreen) {
-        (iframe as any).msRequestFullscreen()
-      }
-      return true
-    } catch (err) {
-      console.error('Failed to enter fullscreen:', err)
-      return false
+  try {
+    if (videoElement.value.requestFullscreen) {
+      videoElement.value.requestFullscreen()
+    } else if ((videoElement.value as any).webkitRequestFullscreen) {
+      (videoElement.value as any).webkitRequestFullscreen()
+    } else if ((videoElement.value as any).mozRequestFullScreen) {
+      (videoElement.value as any).mozRequestFullScreen()
+    } else if ((videoElement.value as any).msRequestFullscreen) {
+      (videoElement.value as any).msRequestFullscreen()
     }
+  } catch (err) {
+    console.error('Fullscreen hiba:', err)
   }
-  
-  if (attemptFullscreen()) return
-  
-  let attempts = 0
-  const maxAttempts = 10
-  const retryInterval = setInterval(() => {
-    attempts++
-    if (attemptFullscreen() || attempts >= maxAttempts) {
-      clearInterval(retryInterval)
-    }
-  }, 500)
 }
 
 function exitFullscreen() {
@@ -378,7 +396,7 @@ function exitFullscreen() {
       (document as any).msExitFullscreen()
     }
   } catch (err) {
-    console.error('Failed to exit fullscreen:', err)
+    console.error('Exit fullscreen hiba:', err)
   }
 }
 
@@ -388,26 +406,32 @@ function handleFullscreenChange() {
                       (document as any).mozFullScreenElement || 
                       (document as any).msFullscreenElement
   
-  const webtorContainer = document.getElementById(playerId.value)
-  const iframe = webtorContainer?.querySelector('iframe')
-  
-  isFullscreen.value = !!fullscreenEl && fullscreenEl === iframe
+  isFullscreen.value = !!fullscreenEl && fullscreenEl === videoElement.value
 }
 
 function cleanup() {
   console.log('🧹 Cleaning up Ncore stream...')
   
-  if (typeof window !== 'undefined') {
-    const playerElement = document.getElementById(playerId.value)
-    if (playerElement) {
-      playerElement.innerHTML = ''
-    }
+  // Destroy torrent and client
+  if (torrent) {
+    torrent.destroy()
+    torrent = null
   }
   
+  if (client) {
+    client.destroy()
+    client = null
+  }
+  
+  // Reset state
   isLoading.value = true
   error.value = ''
-  webtorLoading.value = false
-  playerId.value = `webtor-ncore-${Date.now()}`
+  downloadProgress.value = 0
+  peerCount.value = 0
+  downloadSpeed.value = '0 B/s'
+  uploadSpeed.value = '0 B/s'
+  streamStatus.value = 'Lecsatlakozva'
+  displayTitle.value = props.movieTitle || 'Loading...'
 }
 
 onUnmounted(() => {
@@ -427,8 +451,12 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+video {
+  object-fit: contain;
+}
+
 @media (max-width: 768px) {
-  .webtor {
+  video {
     min-height: 300px;
   }
 }
