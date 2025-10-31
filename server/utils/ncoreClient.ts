@@ -32,10 +32,12 @@ interface MagnetResult {
 
 // Ncore.pro search categories
 enum SearchCategory {
-  HD_HUN = 'xvid_hun',
-  HD_ENG = 'xvid',
-  SD_HUN = 'dvd_hun',
-  SD_ENG = 'dvd'
+  HD_HUN = 'hd_hun',      // Film (HUN HD)
+  HD_ENG = 'hd',          // Film (ENG HD)
+  SD_HUN = 'xvid_hun',    // Film (HUN SD)
+  SD_ENG = 'xvid',        // Film (ENG SD)
+  DVD_HUN = 'dvd_hun',    // Film (HUN DVD)
+  DVD_ENG = 'dvd'         // Film (ENG DVD)
 }
 
 export class NcoreClient {
@@ -98,22 +100,26 @@ export class NcoreClient {
 
     const results: NcoreTorrent[] = []
     const categories = [
-      SearchCategory.HD_HUN,
-      SearchCategory.HD_ENG,
-      SearchCategory.SD_HUN,
-      SearchCategory.SD_ENG
+      SearchCategory.HD_HUN,    // Film (HUN HD) - prioritized
+      SearchCategory.HD_ENG,    // Film (ENG HD) - prioritized
+      SearchCategory.DVD_HUN,   // Film (HUN DVD)
+      SearchCategory.DVD_ENG,   // Film (ENG DVD)
+      SearchCategory.SD_HUN,    // Film (HUN SD)
+      SearchCategory.SD_ENG     // Film (ENG SD)
     ]
 
     try {
       for (const category of categories) {
         try {
-          const searchUrl = `/torrents.php?mire=${encodeURIComponent(movieTitle)}&miben=${category}&tipus=all_own&submit.x=0&submit.y=0&submit=Ok&tags=`
+          const searchUrl = `/torrents.php?mire=${encodeURIComponent(movieTitle)}&miben=${category}&tipus=kivalasztottak_kozott&submit.x=0&submit.y=0&submit=Ok&tags=`
           
+          console.log(`Searching Ncore category ${category} for: ${movieTitle}`)
           const response = await this.axiosInstance.get(searchUrl)
           const html = parse(response.data)
           
           // Parse the torrent table
           const torrentRows = html.querySelectorAll('.box_torrent')
+          console.log(`Found ${torrentRows.length} torrent rows in category ${category}`)
           
           for (let i = 0; i < Math.min(torrentRows.length, 5); i++) {
             const row = torrentRows[i]
