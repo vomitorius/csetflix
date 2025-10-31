@@ -2,12 +2,21 @@
  * Ncore.pro Client - TypeScript implementation
  * Replaces Python ncoreparser library for serverless environments
  */
-import axios, { AxiosInstance } from 'axios'
+import axios, { type AxiosInstance } from 'axios'
 import { wrapper } from 'axios-cookiejar-support'
 import { CookieJar } from 'tough-cookie'
 import { parse } from 'node-html-parser'
 import { createHash } from 'crypto'
 import bencode from 'bencode'
+
+// Bencode ASCII character codes for parsing
+const BENCODE_DICT_START = 'd'.charCodeAt(0)  // 100
+const BENCODE_LIST_START = 'l'.charCodeAt(0)  // 108
+const BENCODE_INT_START = 'i'.charCodeAt(0)   // 105
+const BENCODE_END = 'e'.charCodeAt(0)         // 101
+const BENCODE_COLON = ':'.charCodeAt(0)       // 58
+const BENCODE_DIGIT_0 = '0'.charCodeAt(0)     // 48
+const BENCODE_DIGIT_9 = '9'.charCodeAt(0)     // 57
 
 interface NcoreTorrent {
   id: string
@@ -256,6 +265,94 @@ export class NcoreClient {
     }
   }
 
+  private calculateInfoHash(torrentBuffer: Buffer): string {
+    // Find the start of the info dictionary in the original torrent buffer
+    // The info dictionary is marked by the key "4:info" in bencode format
+    const infoMarker = Buffer.from('4:info')
+    const infoStart = torrentBuffer.indexOf(infoMarker)
+    
+    if (infoStart === -1) {
+      throw new Error('Could not find info dictionary in torrent file')
+    }
+    
+    // The info dictionary starts right after "4:info"
+    const infoDictStart = infoStart + infoMarker.length
+    
+    // Parse from this position to find the end of the info dictionary
+    // We need to parse the bencode structure to find where it ends
+    let depth = 0
+    let pos = infoDictStart
+    let inString = false
+    let stringLength = 0
+    
+    // The first character should be 'd' (dictionary start)
+    if (torrentBuffer[pos] !== BENCODE_DICT_START) {
+      throw new Error('Info dictionary does not start with "d"')
+    }
+    
+    depth = 1
+    pos++
+    
+    while (pos < torrentBuffer.length && depth > 0) {
+      const char = torrentBuffer[pos]
+      
+      if (inString) {
+        // We're reading string data
+        if (stringLength > 0) {
+          stringLength--
+          pos++
+        } else {
+          inString = false
+          pos++
+        }
+      } else if (char >= BENCODE_DIGIT_0 && char <= BENCODE_DIGIT_9) {
+        // Digit - this is a string length
+        let lengthStr = ''
+        while (pos < torrentBuffer.length && torrentBuffer[pos] >= BENCODE_DIGIT_0 && torrentBuffer[pos] <= BENCODE_DIGIT_9) {
+          lengthStr += String.fromCharCode(torrentBuffer[pos])
+          pos++
+        }
+        // Next should be ':'
+        if (torrentBuffer[pos] === BENCODE_COLON) {
+          pos++
+          stringLength = parseInt(lengthStr, 10)
+          inString = true
+        }
+      } else if (char === BENCODE_DICT_START || char === BENCODE_LIST_START) {
+        // 'd' (dictionary) or 'l' (list)
+        depth++
+        pos++
+      } else if (char === BENCODE_END) {
+        // 'e' (end)
+        depth--
+        pos++
+      } else if (char === BENCODE_INT_START) {
+        // 'i' (integer)
+        pos++
+        // Skip until 'e'
+        while (pos < torrentBuffer.length && torrentBuffer[pos] !== BENCODE_END) {
+          pos++
+        }
+        if (pos < torrentBuffer.length) {
+          pos++ // Skip the 'e'
+        }
+      } else {
+        pos++
+      }
+    }
+    
+    // Extract the info dictionary bytes
+    const infoDictEnd = pos
+    const infoBytes = torrentBuffer.slice(infoDictStart, infoDictEnd)
+    
+    // Calculate SHA1 hash
+    const hash = createHash('sha1').update(infoBytes).digest('hex')
+    
+    console.log('[NcoreClient] Extracted info dict bytes:', infoDictStart, 'to', infoDictEnd, '=', infoBytes.length, 'bytes')
+    
+    return hash
+  }
+
   private torrentToMagnet(torrentBuffer: Buffer): string {
     try {
       console.log('[NcoreClient] Converting torrent to magnet, buffer size:', torrentBuffer.length)
@@ -268,9 +365,10 @@ export class NcoreClient {
         throw new Error('Invalid torrent file: info dictionary not found')
       }
       
-      // Calculate info hash from the bencoded info dictionary
-      const infoBuffer = bencode.encode(torrentData.info)
-      const infoHash = createHash('sha1').update(infoBuffer).digest('hex')
+      // CRITICAL FIX: Calculate info hash from the ORIGINAL bencoded info dictionary bytes
+      // We must find and extract the exact bytes from the original torrent buffer
+      // because re-encoding with bencode.encode() may produce different bytes
+      const infoHash = this.calculateInfoHash(torrentBuffer)
       
       console.log('[NcoreClient] Info hash:', infoHash)
       
