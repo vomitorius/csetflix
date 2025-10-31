@@ -8,6 +8,7 @@ CsetFlix is a modern web application that was made for movie browsing. It integr
 - Search for movies by title
 - View detailed movie information
 - Network-accessible interface
+- **Ncore.pro Integration** - Search and stream torrents directly from ncore.pro
 
 ## Tech Stack
 
@@ -39,8 +40,14 @@ cp .env.example .env
    - Get a TMDB API key from [https://www.themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)
    - Set up qBittorrent Web UI credentials
    - Configure file paths
+   - **Ncore.pro credentials** - Add your ncore.pro username and password for torrent search functionality
 
-5. Run the development server
+5. Install Python dependencies for Ncore integration:
+```bash
+pip3 install -r requirements.txt
+```
+
+6. Run the development server
 ```bash
 # Run locally
 npm run dev
@@ -54,4 +61,5 @@ npm run dev
 - Visit the homepage to see trending movies
 - Use the search feature to find specific titles
 - Click on a movie to view details
+- Click on "Ncore" button on movie detail page to search and stream from ncore.pro (requires valid ncore.pro account)
 
