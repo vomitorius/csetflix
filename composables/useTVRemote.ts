@@ -201,6 +201,15 @@ export const useTVRemote = () => {
   const handleKeyDown = (event: KeyboardEvent) => {
     if (!isEnabled.value) return
 
+    // Check if user is typing in an input field
+    const target = event.target
+    const isTyping = target instanceof HTMLElement && (
+      target.tagName === 'TEXTAREA' ||
+      target.isContentEditable ||
+      (target.tagName === 'INPUT' && target instanceof HTMLInputElement && 
+        !['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'image'].includes(target.type))
+    )
+
     switch (event.key) {
       case 'ArrowUp':
         event.preventDefault()
@@ -224,8 +233,11 @@ export const useTVRemote = () => {
         break
       case 'Escape':
       case 'Backspace':
-        event.preventDefault()
-        goBack()
+        // Don't intercept Escape/Backspace when user is typing in an input field
+        if (!isTyping) {
+          event.preventDefault()
+          goBack()
+        }
         break
     }
   }
