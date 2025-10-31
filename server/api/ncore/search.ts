@@ -1,9 +1,5 @@
 // Ncore.pro search API endpoint
-import { exec } from 'child_process'
-import { promisify } from 'util'
-import path from 'path'
-
-const execAsync = promisify(exec)
+import { NcoreClient } from '~/server/utils/ncoreClient'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -29,25 +25,13 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Call Python script to search Ncore
-    // Pass credentials via environment variables for security
-    const scriptPath = path.join(process.cwd(), 'server', 'scripts', 'ncore_search.py')
-    const command = `python3 "${scriptPath}" "${movieTitle}"`
-
-    const { stdout, stderr } = await execAsync(command, {
-      timeout: 30000, // 30 second timeout
-      env: {
-        ...process.env,
-        NCORE_USERNAME: username,
-        NCORE_PASSWORD: password
-      }
-    })
-
-    if (stderr) {
-      console.error('Ncore search stderr:', stderr)
-    }
-
-    const result = JSON.parse(stdout)
+    // Use TypeScript Ncore client (no Python required)
+    const client = new NcoreClient(username, password)
+    const result = await client.search(movieTitle)
+    
+    // Logout after search
+    await client.logout()
+    
     return result
 
   } catch (error: any) {

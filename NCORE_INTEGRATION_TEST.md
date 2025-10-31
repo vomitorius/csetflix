@@ -5,10 +5,7 @@ This document provides instructions for manually testing the Ncore.pro integrati
 ## Prerequisites
 
 1. Valid Ncore.pro account credentials
-2. Python 3 installed with required packages:
-   ```bash
-   pip3 install -r requirements.txt
-   ```
+2. **No Python required!** - Ncore integration now runs natively in Node.js/TypeScript
 3. Ncore credentials configured in `.env` file:
    ```bash
    NCORE_USERNAME=your_ncore_username
@@ -17,54 +14,9 @@ This document provides instructions for manually testing the Ncore.pro integrati
 
 ## Test Scenarios
 
-### 1. Python Script Testing
+### 1. API Endpoint Testing
 
-Test the Python scripts independently to verify they work with your credentials:
-
-#### Test Search Script
-```bash
-cd server/scripts
-export NCORE_USERNAME="your_username"
-export NCORE_PASSWORD="your_password"
-python3 ncore_search.py "Matrix"
-```
-
-**Expected Output:**
-```json
-{
-  "success": true,
-  "torrents": [
-    {
-      "id": "...",
-      "title": "...",
-      "type": "...",
-      "size": "...",
-      "seeders": 123,
-      "leechers": 45,
-      "uploaded": "...",
-      "url": "..."
-    }
-  ],
-  "count": 10
-}
-```
-
-#### Test Magnet Link Script
-```bash
-export NCORE_USERNAME="your_username"
-export NCORE_PASSWORD="your_password"
-python3 ncore_magnet.py "TORRENT_ID"
-```
-
-**Expected Output:**
-```json
-{
-  "success": true,
-  "magnet": "magnet:?xt=urn:btih:..."
-}
-```
-
-### 2. API Endpoint Testing
+**Note:** Python scripts are no longer used. All functionality is implemented in TypeScript/Node.js.
 
 Start the development server:
 ```bash
@@ -192,10 +144,10 @@ curl "http://localhost:3000/api/ncore/search?title=Matrix"
 - Restart development server after updating `.env`
 - Check `nuxt.config.ts` has `ncoreUsername` and `ncorePassword` in runtimeConfig
 
-### Python Script Fails
-- Verify Python 3 is installed: `python3 --version`
-- Install dependencies: `pip3 install -r requirements.txt`
-- Test script directly with valid credentials
+### TypeScript Client Fails
+- Check server logs for detailed error messages
+- Verify credentials are correct in `.env` file
+- Ensure ncore.pro is accessible from your network
 
 ### Search Returns No Results
 - Verify credentials are correct

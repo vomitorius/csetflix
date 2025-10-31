@@ -7,29 +7,28 @@ Successfully implemented complete integration with Ncore.pro torrent site, enabl
 
 ### 1. Backend Components
 
-#### Python Scripts
-- **`server/scripts/ncore_search.py`**
-  - Searches Ncore.pro using the `ncoreparser` library
+#### TypeScript/Node.js Implementation
+- **`server/utils/ncoreClient.ts`**
+  - TypeScript implementation replaces Python ncoreparser library
+  - Works natively in Node.js/serverless environments (no Python required!)
+  - Searches Ncore.pro using axios and HTML parsing
   - Searches across 4 categories: HD_HUN, HD_ENG, SD_HUN, SD_ENG
   - Returns top 20 results sorted by seeders
-  - Credentials passed via environment variables for security
-
-- **`server/scripts/ncore_magnet.py`**
-  - Downloads torrent file from Ncore.pro
-  - Converts torrent file to magnet link using bencodepy
-  - Returns magnet link for streaming
-  - Credentials passed via environment variables for security
+  - Downloads torrent files and converts to magnet links using built-in crypto
+  - Credentials passed securely via constructor
 
 #### Server API Endpoints
 - **`/api/ncore/search?title={movieTitle}`**
-  - Calls Python search script
+  - Uses TypeScript NcoreClient (no Python required)
   - Returns JSON with torrent results
   - Handles authentication errors gracefully
+  - Works in serverless environments (Vercel, Netlify, AWS Lambda, etc.)
 
 - **`/api/ncore/magnet?id={torrentId}`**
-  - Calls Python magnet script
+  - Uses TypeScript NcoreClient (no Python required)
   - Returns JSON with magnet link
   - Handles authentication errors gracefully
+  - Works in serverless environments (Vercel, Netlify, AWS Lambda, etc.)
 
 ### 2. Frontend Components
 
@@ -68,8 +67,8 @@ NCORE_PASSWORD=your_password
 ```
 
 #### Dependencies
-- **Python:** ncoreparser>=4.0.0, bencodepy>=0.9.5
-- **Node.js:** Existing dependencies (no new npm packages required)
+- **Node.js:** Uses existing dependencies only (axios, node-html-parser, crypto)
+- **No Python required!** - Pure TypeScript/Node.js implementation
 
 ### 4. Security Measures
 
@@ -106,9 +105,7 @@ NCORE_PASSWORD=your_password
 - `components/NcoreStreamPlayer.vue`
 - `server/api/ncore/search.ts`
 - `server/api/ncore/magnet.ts`
-- `server/scripts/ncore_search.py`
-- `server/scripts/ncore_magnet.py`
-- `requirements.txt`
+- `server/utils/ncoreClient.ts` (TypeScript Ncore client)
 - `NCORE_INTEGRATION_TEST.md`
 - `NCORE_IMPLEMENTATION_SUMMARY.md`
 
@@ -164,10 +161,11 @@ Original requirements from issue:
 ### 9. Known Limitations
 
 - Requires valid Ncore.pro account
-- Python 3 must be installed on server
+- ~~Python 3 must be installed on server~~ **FIXED:** Now uses TypeScript/Node.js (no Python required)
 - Limited to 20 search results per query
 - Searches only movie categories (HD/SD Hungarian/English)
 - TMDB API required for movie metadata (not Ncore-specific)
+- Web scraping based - may break if Ncore.pro changes their HTML structure
 
 ### 10. Future Enhancements (Optional)
 

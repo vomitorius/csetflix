@@ -42,10 +42,7 @@ cp .env.example .env
    - Configure file paths
    - **Ncore.pro credentials** - Add your ncore.pro username and password for torrent search functionality
 
-5. Install Python dependencies for Ncore integration:
-```bash
-pip3 install -r requirements.txt
-```
+5. **Optional:** Python dependencies are no longer required for Ncore integration (now uses TypeScript/Node.js)
 
 6. Run the development server
 ```bash
@@ -62,4 +59,5 @@ npm run dev
 - Use the search feature to find specific titles
 - Click on a movie to view details
 - Click on "Ncore" button on movie detail page to search and stream from ncore.pro (requires valid ncore.pro account)
+- **New:** Ncore integration now runs natively in Node.js (no Python required)
 
