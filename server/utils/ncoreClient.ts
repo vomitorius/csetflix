@@ -2,7 +2,7 @@
  * Ncore.pro Client - TypeScript implementation
  * Replaces Python ncoreparser library for serverless environments
  */
-import axios, { type AxiosInstance } from 'axios'
+import axios, { AxiosInstance } from 'axios'
 import { wrapper } from 'axios-cookiejar-support'
 import { CookieJar } from 'tough-cookie'
 import { parse } from 'node-html-parser'
@@ -42,28 +42,6 @@ enum SearchCategory {
   DVD_HUN = 'dvd_hun',    // Film (HUN DVD)
   DVD_ENG = 'dvd'         // Film (ENG DVD)
 }
-
-// Public trackers to improve peer discovery for Webtor.io
-// These are reliable, high-performance public trackers that help with magnetization
-const PUBLIC_TRACKERS = [
-  'udp://tracker.opentrackr.org:1337/announce',
-  'udp://open.stealth.si:80/announce',
-  'udp://tracker.torrent.eu.org:451/announce',
-  'udp://tracker.bittor.pw:1337/announce',
-  'udp://public.popcorn-tracker.org:6969/announce',
-  'udp://tracker.dler.org:6969/announce',
-  'udp://exodus.desync.com:6969/announce',
-  'udp://open.demonii.com:1337/announce',
-  'udp://tracker.openbittorrent.com:6969/announce',
-  'udp://tracker.internetwarriors.net:1337/announce',
-  'udp://tracker.leechers-paradise.org:6969/announce',
-  'udp://tracker.coppersurfer.tk:6969/announce',
-  'udp://tracker.zer0day.to:1337/announce',
-  'udp://eddie4.nl:6969/announce',
-  'wss://tracker.openwebtorrent.com',
-  'wss://tracker.webtorrent.dev',
-  'wss://tracker.files.fm:7073/announce'
-]
 
 export class NcoreClient {
   private axiosInstance: AxiosInstance
@@ -278,6 +256,93 @@ export class NcoreClient {
     }
   }
 
+  private calculateInfoHash(torrentBuffer: Buffer): string {
+    // Find the start of the info dictionary in the original torrent buffer
+    // The info dictionary is marked by the key "4:info" in bencode format
+    const infoMarker = Buffer.from('4:info')
+    const infoStart = torrentBuffer.indexOf(infoMarker)
+    
+    if (infoStart === -1) {
+      throw new Error('Could not find info dictionary in torrent file')
+    }
+    
+    // The info dictionary starts right after "4:info"
+    const infoDictStart = infoStart + infoMarker.length
+    
+    // Parse from this position to find the end of the info dictionary
+    // We need to parse the bencode structure to find where it ends
+    let depth = 0
+    let pos = infoDictStart
+    let inString = false
+    let stringLength = 0
+    
+    // The first character should be 'd' (dictionary start)
+    if (torrentBuffer[pos] !== 100) { // 'd' = 100 in ASCII
+      throw new Error('Info dictionary does not start with "d"')
+    }
+    
+    depth = 1
+    pos++
+    
+    while (pos < torrentBuffer.length && depth > 0) {
+      const char = torrentBuffer[pos]
+      
+      if (inString) {
+        // We're reading string data
+        if (stringLength > 0) {
+          stringLength--
+          pos++
+        } else {
+          inString = false
+        }
+      } else if (char >= 48 && char <= 57) {
+        // Digit - this is a string length
+        let lengthStr = ''
+        while (pos < torrentBuffer.length && torrentBuffer[pos] >= 48 && torrentBuffer[pos] <= 57) {
+          lengthStr += String.fromCharCode(torrentBuffer[pos])
+          pos++
+        }
+        // Next should be ':'
+        if (torrentBuffer[pos] === 58) { // ':'
+          pos++
+          stringLength = parseInt(lengthStr, 10)
+          inString = true
+        }
+      } else if (char === 100 || char === 108) {
+        // 'd' (dictionary) or 'l' (list)
+        depth++
+        pos++
+      } else if (char === 101) {
+        // 'e' (end)
+        depth--
+        pos++
+      } else if (char === 105) {
+        // 'i' (integer)
+        pos++
+        // Skip until 'e'
+        while (pos < torrentBuffer.length && torrentBuffer[pos] !== 101) {
+          pos++
+        }
+        if (pos < torrentBuffer.length) {
+          pos++ // Skip the 'e'
+        }
+      } else {
+        pos++
+      }
+    }
+    
+    // Extract the info dictionary bytes
+    const infoDictEnd = pos
+    const infoBytes = torrentBuffer.slice(infoDictStart, infoDictEnd)
+    
+    // Calculate SHA1 hash
+    const hash = createHash('sha1').update(infoBytes).digest('hex')
+    
+    console.log('[NcoreClient] Extracted info dict bytes:', infoDictStart, 'to', infoDictEnd, '=', infoBytes.length, 'bytes')
+    
+    return hash
+  }
+
   private torrentToMagnet(torrentBuffer: Buffer): string {
     try {
       console.log('[NcoreClient] Converting torrent to magnet, buffer size:', torrentBuffer.length)
@@ -290,9 +355,10 @@ export class NcoreClient {
         throw new Error('Invalid torrent file: info dictionary not found')
       }
       
-      // Calculate info hash from the bencoded info dictionary
-      const infoBuffer = bencode.encode(torrentData.info)
-      const infoHash = createHash('sha1').update(infoBuffer).digest('hex')
+      // CRITICAL FIX: Calculate info hash from the ORIGINAL bencoded info dictionary bytes
+      // We must find and extract the exact bytes from the original torrent buffer
+      // because re-encoding with bencode.encode() may produce different bytes
+      const infoHash = this.calculateInfoHash(torrentBuffer)
       
       console.log('[NcoreClient] Info hash:', infoHash)
       
@@ -303,14 +369,11 @@ export class NcoreClient {
       // Build magnet link
       let magnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(name)}`
       
-      // Collect all trackers in a Set to avoid duplicates
-      const trackers = new Set<string>()
-      
-      // Add tracker URLs from torrent file
+      // Add tracker URLs
       if (torrentData.announce) {
         const tracker = torrentData.announce.toString('utf-8')
-        trackers.add(tracker)
-        console.log('[NcoreClient] Added original tracker:', tracker)
+        magnet += `&tr=${encodeURIComponent(tracker)}`
+        console.log('[NcoreClient] Added tracker:', tracker)
       }
       
       // Add announce list trackers
@@ -319,28 +382,14 @@ export class NcoreClient {
           if (Array.isArray(tierList)) {
             for (const trackerBuffer of tierList) {
               const tracker = trackerBuffer.toString('utf-8')
-              trackers.add(tracker)
+              magnet += `&tr=${encodeURIComponent(tracker)}`
             }
           }
         }
-        console.log('[NcoreClient] Added', torrentData['announce-list'].length, 'tracker tiers from torrent')
+        console.log('[NcoreClient] Added', torrentData['announce-list'].length, 'tracker tiers')
       }
       
-      // Add public trackers to improve peer discovery for Webtor.io
-      for (const tracker of PUBLIC_TRACKERS) {
-        trackers.add(tracker)
-      }
-      
-      console.log('[NcoreClient] Total trackers:', trackers.size)
-      
-      // Append all trackers to magnet link
-      // Convert Set to Array for compatibility with older TypeScript targets
-      const trackerList = Array.from(trackers)
-      for (const tracker of trackerList) {
-        magnet += `&tr=${encodeURIComponent(tracker)}`
-      }
-      
-      console.log('[NcoreClient] Magnet link created successfully with', trackers.size, 'trackers')
+      console.log('[NcoreClient] Magnet link created successfully')
       return magnet
     } catch (error: any) {
       console.error('[NcoreClient] Error converting torrent to magnet:', error)
