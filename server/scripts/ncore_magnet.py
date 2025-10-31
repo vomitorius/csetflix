@@ -79,20 +79,28 @@ def get_magnet_link(torrent_id, username, password):
         if temp_dir and os.path.exists(temp_dir):
             try:
                 os.rmdir(temp_dir)
-            except:
-                pass
+            except (OSError, FileNotFoundError) as e:
+                # Directory might not be empty or already removed, which is fine
+                print(f"Warning: Could not remove temp directory: {e}", file=sys.stderr)
 
 def main():
-    if len(sys.argv) < 4:
+    if len(sys.argv) < 2:
         print(json.dumps({
             'success': False,
-            'error': 'Usage: ncore_magnet.py <torrent_id> <username> <password>'
+            'error': 'Usage: ncore_magnet.py <torrent_id>'
         }))
         sys.exit(1)
     
     torrent_id = sys.argv[1]
-    username = sys.argv[2]
-    password = sys.argv[3]
+    username = os.environ.get('NCORE_USERNAME')
+    password = os.environ.get('NCORE_PASSWORD')
+    
+    if not username or not password:
+        print(json.dumps({
+            'success': False,
+            'error': 'NCORE_USERNAME and NCORE_PASSWORD environment variables are required'
+        }))
+        sys.exit(1)
     
     result = get_magnet_link(torrent_id, username, password)
     print(json.dumps(result))

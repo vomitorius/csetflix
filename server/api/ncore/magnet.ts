@@ -30,11 +30,17 @@ export default defineEventHandler(async (event) => {
     }
 
     // Call Python script to get magnet link
+    // Pass credentials via environment variables for security
     const scriptPath = path.join(process.cwd(), 'server', 'scripts', 'ncore_magnet.py')
-    const command = `python3 "${scriptPath}" "${torrentId}" "${username}" "${password}"`
+    const command = `python3 "${scriptPath}" "${torrentId}"`
 
     const { stdout, stderr } = await execAsync(command, {
-      timeout: 30000 // 30 second timeout
+      timeout: 30000, // 30 second timeout
+      env: {
+        ...process.env,
+        NCORE_USERNAME: username,
+        NCORE_PASSWORD: password
+      }
     })
 
     if (stderr) {

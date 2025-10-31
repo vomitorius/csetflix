@@ -24,7 +24,9 @@ Test the Python scripts independently to verify they work with your credentials:
 #### Test Search Script
 ```bash
 cd server/scripts
-python3 ncore_search.py "Matrix" "your_username" "your_password"
+export NCORE_USERNAME="your_username"
+export NCORE_PASSWORD="your_password"
+python3 ncore_search.py "Matrix"
 ```
 
 **Expected Output:**
@@ -49,7 +51,9 @@ python3 ncore_search.py "Matrix" "your_username" "your_password"
 
 #### Test Magnet Link Script
 ```bash
-python3 ncore_magnet.py "TORRENT_ID" "your_username" "your_password"
+export NCORE_USERNAME="your_username"
+export NCORE_PASSWORD="your_password"
+python3 ncore_magnet.py "TORRENT_ID"
 ```
 
 **Expected Output:**

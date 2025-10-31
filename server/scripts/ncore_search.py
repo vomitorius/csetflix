@@ -70,16 +70,23 @@ def search_movie(movie_title, username, password):
         }
 
 def main():
-    if len(sys.argv) < 4:
+    if len(sys.argv) < 2:
         print(json.dumps({
             'success': False,
-            'error': 'Usage: ncore_search.py <movie_title> <username> <password>'
+            'error': 'Usage: ncore_search.py <movie_title>'
         }))
         sys.exit(1)
     
     movie_title = sys.argv[1]
-    username = sys.argv[2]
-    password = sys.argv[3]
+    username = os.environ.get('NCORE_USERNAME')
+    password = os.environ.get('NCORE_PASSWORD')
+    
+    if not username or not password:
+        print(json.dumps({
+            'success': False,
+            'error': 'NCORE_USERNAME and NCORE_PASSWORD environment variables are required'
+        }))
+        sys.exit(1)
     
     result = search_movie(movie_title, username, password)
     print(json.dumps(result))
