@@ -2,12 +2,21 @@
  * Ncore.pro Client - TypeScript implementation
  * Replaces Python ncoreparser library for serverless environments
  */
-import axios, { AxiosInstance } from 'axios'
+import axios, { type AxiosInstance } from 'axios'
 import { wrapper } from 'axios-cookiejar-support'
 import { CookieJar } from 'tough-cookie'
 import { parse } from 'node-html-parser'
 import { createHash } from 'crypto'
 import bencode from 'bencode'
+
+// Bencode ASCII character codes for parsing
+const BENCODE_DICT_START = 'd'.charCodeAt(0)  // 100
+const BENCODE_LIST_START = 'l'.charCodeAt(0)  // 108
+const BENCODE_INT_START = 'i'.charCodeAt(0)   // 105
+const BENCODE_END = 'e'.charCodeAt(0)         // 101
+const BENCODE_COLON = ':'.charCodeAt(0)       // 58
+const BENCODE_DIGIT_0 = '0'.charCodeAt(0)     // 48
+const BENCODE_DIGIT_9 = '9'.charCodeAt(0)     // 57
 
 interface NcoreTorrent {
   id: string
@@ -277,7 +286,7 @@ export class NcoreClient {
     let stringLength = 0
     
     // The first character should be 'd' (dictionary start)
-    if (torrentBuffer[pos] !== 100) { // 'd' = 100 in ASCII
+    if (torrentBuffer[pos] !== BENCODE_DICT_START) {
       throw new Error('Info dictionary does not start with "d"')
     }
     
@@ -295,32 +304,32 @@ export class NcoreClient {
         } else {
           inString = false
         }
-      } else if (char >= 48 && char <= 57) {
+      } else if (char >= BENCODE_DIGIT_0 && char <= BENCODE_DIGIT_9) {
         // Digit - this is a string length
         let lengthStr = ''
-        while (pos < torrentBuffer.length && torrentBuffer[pos] >= 48 && torrentBuffer[pos] <= 57) {
+        while (pos < torrentBuffer.length && torrentBuffer[pos] >= BENCODE_DIGIT_0 && torrentBuffer[pos] <= BENCODE_DIGIT_9) {
           lengthStr += String.fromCharCode(torrentBuffer[pos])
           pos++
         }
         // Next should be ':'
-        if (torrentBuffer[pos] === 58) { // ':'
+        if (torrentBuffer[pos] === BENCODE_COLON) {
           pos++
           stringLength = parseInt(lengthStr, 10)
           inString = true
         }
-      } else if (char === 100 || char === 108) {
+      } else if (char === BENCODE_DICT_START || char === BENCODE_LIST_START) {
         // 'd' (dictionary) or 'l' (list)
         depth++
         pos++
-      } else if (char === 101) {
+      } else if (char === BENCODE_END) {
         // 'e' (end)
         depth--
         pos++
-      } else if (char === 105) {
+      } else if (char === BENCODE_INT_START) {
         // 'i' (integer)
         pos++
         // Skip until 'e'
-        while (pos < torrentBuffer.length && torrentBuffer[pos] !== 101) {
+        while (pos < torrentBuffer.length && torrentBuffer[pos] !== BENCODE_END) {
           pos++
         }
         if (pos < torrentBuffer.length) {
