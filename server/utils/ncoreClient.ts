@@ -43,6 +43,28 @@ enum SearchCategory {
   DVD_ENG = 'dvd'         // Film (ENG DVD)
 }
 
+// Public trackers to improve peer discovery for Webtor.io
+// These are reliable, high-performance public trackers that help with magnetization
+const PUBLIC_TRACKERS = [
+  'udp://tracker.opentrackr.org:1337/announce',
+  'udp://open.stealth.si:80/announce',
+  'udp://tracker.torrent.eu.org:451/announce',
+  'udp://tracker.bittor.pw:1337/announce',
+  'udp://public.popcorn-tracker.org:6969/announce',
+  'udp://tracker.dler.org:6969/announce',
+  'udp://exodus.desync.com:6969/announce',
+  'udp://open.demonii.com:1337/announce',
+  'udp://tracker.openbittorrent.com:6969/announce',
+  'udp://tracker.internetwarriors.net:1337/announce',
+  'udp://tracker.leechers-paradise.org:6969/announce',
+  'udp://tracker.coppersurfer.tk:6969/announce',
+  'udp://tracker.zer0day.to:1337/announce',
+  'udp://eddie4.nl:6969/announce',
+  'wss://tracker.openwebtorrent.com',
+  'wss://tracker.webtorrent.dev',
+  'wss://tracker.files.fm:7073/announce'
+]
+
 export class NcoreClient {
   private axiosInstance: AxiosInstance
   private isLoggedIn: boolean = false
@@ -305,28 +327,7 @@ export class NcoreClient {
       }
       
       // Add public trackers to improve peer discovery for Webtor.io
-      // These are reliable, high-performance public trackers that help with magnetization
-      const publicTrackers = [
-        'udp://tracker.opentrackr.org:1337/announce',
-        'udp://open.stealth.si:80/announce',
-        'udp://tracker.torrent.eu.org:451/announce',
-        'udp://tracker.bittor.pw:1337/announce',
-        'udp://public.popcorn-tracker.org:6969/announce',
-        'udp://tracker.dler.org:6969/announce',
-        'udp://exodus.desync.com:6969/announce',
-        'udp://open.demonii.com:1337/announce',
-        'udp://tracker.openbittorrent.com:6969/announce',
-        'udp://tracker.internetwarriors.net:1337/announce',
-        'udp://tracker.leechers-paradise.org:6969/announce',
-        'udp://tracker.coppersurfer.tk:6969/announce',
-        'udp://tracker.zer0day.to:1337/announce',
-        'udp://eddie4.nl:6969/announce',
-        'wss://tracker.openwebtorrent.com',
-        'wss://tracker.webtorrent.dev',
-        'wss://tracker.files.fm:7073/announce'
-      ]
-      
-      for (const tracker of publicTrackers) {
+      for (const tracker of PUBLIC_TRACKERS) {
         trackers.add(tracker)
       }
       
