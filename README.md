@@ -8,7 +8,6 @@ CsetFlix is a modern web application that was made for movie browsing. It integr
 - Search for movies by title
 - View detailed movie information
 - Network-accessible interface
-- **Ncore.pro Integration** - Search and stream torrents directly from ncore.pro
 
 ## Tech Stack
 
