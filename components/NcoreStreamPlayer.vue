@@ -267,11 +267,22 @@ async function initializeStream() {
       statusText.value = 'Magnet link feldolgozása'
       
       // Add torrent with WebTorrent trackers
+      console.log('🔧 Adding torrent with magnet:', props.magnetLink.substring(0, 100) + '...')
       torrent = client.add(props.magnetLink, {
         announce: DEFAULT_TRACKERS
       })
       
+      console.log('✅ Torrent added, setting up events...')
       setupTorrentEvents()
+      
+      // Set a timeout to show error if metadata never arrives
+      setTimeout(() => {
+        if (isLoading.value && !error.value) {
+          console.warn('⚠️ Torrent metadata timeout - no peers found')
+          error.value = 'Nem sikerült csatlakozni a torrenthez. Ellenőrizd a magnet linket vagy próbálj újra később.'
+          isLoading.value = false
+        }
+      }, 30000) // 30 second timeout
     } else {
       error.value = 'WebTorrent böngésző környezetet igényel'
       isLoading.value = false
@@ -285,10 +296,20 @@ async function initializeStream() {
 }
 
 function setupTorrentEvents() {
-  if (!torrent) return
+  if (!torrent) {
+    console.error('❌ No torrent object to setup events on')
+    return
+  }
+  
+  console.log('🎧 Setting up torrent event listeners...')
   
   torrent.on('metadata', () => {
-    console.log('📦 Torrent metadata fogadva')
+    console.log('📦 Torrent metadata received')
+    console.log('📁 Files in torrent:', torrent!.files.length)
+    torrent!.files.forEach((file: TorrentFile, index: number) => {
+      console.log(`  ${index + 1}. ${file.name} (${formatBytes(file.length)})`)
+    })
+    
     loadingText.value = 'Videó fájl keresése...'
     statusText.value = `${torrent!.files.length} fájl találva`
     
@@ -310,18 +331,26 @@ function setupTorrentEvents() {
     }
     
     if (videoFile) {
+      console.log('🎬 Selected video file:', videoFile.name, `(${formatBytes(videoFile.length)})`)
       displayTitle.value = videoFile.name
       loadingText.value = 'Videó stream előkészítése...'
       statusText.value = `Streaming: ${videoFile.name}`
       
       // Render video to video element
       if (videoElement.value) {
+        console.log('📺 Rendering video to element...')
         videoFile.renderTo(videoElement.value, {
           autoplay: true,
           controls: true
         })
+        console.log('✅ Video element setup complete')
+      } else {
+        console.error('❌ Video element not found')
+        error.value = 'Videó elem nem található'
+        isLoading.value = false
       }
     } else {
+      console.error('❌ No video file found in torrent')
       error.value = 'Nem található videó fájl a torrentben'
       isLoading.value = false
     }
@@ -348,9 +377,20 @@ function setupTorrentEvents() {
   })
   
   torrent.on('ready', () => {
-    console.log('✅ Torrent kész')
+    console.log('✅ Torrent ready')
     streamStatus.value = 'Kész'
   })
+  
+  torrent.on('infoHash', () => {
+    console.log('🔑 Torrent infoHash received - magnet link is valid')
+    statusText.value = 'Magnet link érvényes, peer keresés...'
+  })
+  
+  torrent.on('noPeers', (announceType: string) => {
+    console.warn('⚠️ No peers found on', announceType)
+  })
+  
+  console.log('✅ Event listeners configured')
 }
 
 function formatBytes(bytes: number): string {
