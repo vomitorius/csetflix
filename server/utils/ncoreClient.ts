@@ -303,6 +303,7 @@ export class NcoreClient {
           pos++
         } else {
           inString = false
+          pos++
         }
       } else if (char >= BENCODE_DIGIT_0 && char <= BENCODE_DIGIT_9) {
         // Digit - this is a string length
