@@ -122,10 +122,34 @@
 
 <script setup lang="ts">
 // Add global WebTorrent type declaration
+// Note: Using 'any' for WebTorrent types as @types/webtorrent is not available
+// In the future, consider creating custom type definitions for better type safety
 declare global {
   interface Window {
     WebTorrent: any
   }
+}
+
+interface TorrentFile {
+  name: string
+  length: number
+  renderTo: (element: HTMLVideoElement, options?: { autoplay?: boolean; controls?: boolean }) => void
+  getBlobURL: (callback: (err: Error | null, url?: string) => void) => void
+}
+
+interface Torrent {
+  files: TorrentFile[]
+  progress: number
+  downloadSpeed: number
+  uploadSpeed: number
+  numPeers: number
+  destroy: () => void
+  on: (event: string, callback: (data?: any) => void) => void
+}
+
+interface WebTorrentClient {
+  add: (magnetUri: string, options?: { announce?: string[] }) => Torrent
+  destroy: () => void
 }
 
 interface Props {
@@ -157,8 +181,8 @@ const peerCount = ref(0)
 const downloadSpeed = ref('0 B/s')
 const uploadSpeed = ref('0 B/s')
 
-let client: any = null
-let torrent: any = null
+let client: WebTorrentClient | null = null
+let torrent: Torrent | null = null
 
 // Load WebTorrent from CDN
 function loadWebTorrentFromCDN(): Promise<void> {
@@ -233,12 +257,14 @@ async function initializeStream() {
       statusText.value = 'Magnet link feldolgozása'
       
       // Add torrent with WebTorrent trackers
+      const defaultTrackers = [
+        'wss://tracker.btorrent.xyz',
+        'wss://tracker.openwebtorrent.com',
+        'wss://tracker.webtorrent.io'
+      ]
+      
       torrent = client.add(props.magnetLink, {
-        announce: [
-          'wss://tracker.btorrent.xyz',
-          'wss://tracker.openwebtorrent.com',
-          'wss://tracker.webtorrent.io'
-        ]
+        announce: defaultTrackers
       })
       
       setupTorrentEvents()
@@ -263,11 +289,21 @@ function setupTorrentEvents() {
     statusText.value = `${torrent!.files.length} fájl találva`
     
     // Find the largest video file
-    const videoFile = torrent!.files.find((file: any) => 
-      /\.(mp4|avi|mkv|mov|wmv|flv|webm|m4v)$/i.test(file.name)
-    ) || torrent!.files.reduce((largest: any, file: any) => 
-      file.length > largest.length ? file : largest
+    const videoExtensions = /\.(mp4|avi|mkv|mov|wmv|flv|webm|m4v)$/i
+    let videoFile = torrent!.files.find((file: TorrentFile) => 
+      videoExtensions.test(file.name)
     )
+    
+    // If no video file found by extension, try to find the largest file that might be a video
+    if (!videoFile) {
+      const largestFile = torrent!.files.reduce((largest: TorrentFile, file: TorrentFile) => 
+        file.length > largest.length ? file : largest
+      )
+      // Only use if it's reasonably large (> 10MB) suggesting it might be a video
+      if (largestFile && largestFile.length > 10 * 1024 * 1024) {
+        videoFile = largestFile
+      }
+    }
     
     if (videoFile) {
       displayTitle.value = videoFile.name
@@ -280,12 +316,6 @@ function setupTorrentEvents() {
           autoplay: true,
           controls: true
         })
-        
-        // Hide loading after a short delay to allow video to start
-        setTimeout(() => {
-          isLoading.value = false
-          streamStatus.value = 'Streaming'
-        }, 1000)
       }
     } else {
       error.value = 'Nem található videó fájl a torrentben'
@@ -341,6 +371,7 @@ function onVideoLoadStart() {
 
 function onVideoLoaded() {
   console.log('✅ Videó sikeresen betöltve')
+  isLoading.value = false
   streamStatus.value = 'Lejátszás'
 }
 
