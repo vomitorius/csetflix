@@ -232,7 +232,7 @@ export const useTVRemote = () => {
         break
       case 'Escape':
       case 'Backspace':
-        // Don't intercept Backspace when user is typing in an input field
+        // Don't intercept Escape/Backspace when user is typing in an input field
         if (!isTyping) {
           event.preventDefault()
           goBack()
