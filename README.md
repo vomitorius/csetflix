@@ -39,11 +39,7 @@ cp .env.example .env
    - Get a TMDB API key from [https://www.themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)
    - Set up qBittorrent Web UI credentials
    - Configure file paths
-   - **Ncore.pro credentials** - Add your ncore.pro username and password for torrent search functionality
-
-5. **Optional:** Python dependencies are no longer required for Ncore integration (now uses TypeScript/Node.js)
-
-6. Run the development server
+5. Run the development server
 ```bash
 # Run locally
 npm run dev
