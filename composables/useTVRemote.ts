@@ -203,10 +203,15 @@ export const useTVRemote = () => {
 
     // Check if user is typing in an input field
     const target = event.target
+    if (!target || !(target instanceof HTMLElement)) {
+      // If no target or not an HTMLElement, proceed with normal TV remote navigation
+    }
+    
     const isTyping = target instanceof HTMLElement && (
-      target.tagName === 'INPUT' ||
       target.tagName === 'TEXTAREA' ||
-      target.isContentEditable
+      target.isContentEditable ||
+      (target.tagName === 'INPUT' && target instanceof HTMLInputElement && 
+        !['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'image'].includes(target.type))
     )
 
     switch (event.key) {
