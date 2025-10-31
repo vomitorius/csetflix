@@ -202,8 +202,8 @@ export const useTVRemote = () => {
     if (!isEnabled.value) return
 
     // Check if user is typing in an input field
-    const target = event.target as HTMLElement
-    const isTyping = target && (
+    const target = event.target
+    const isTyping = target instanceof HTMLElement && (
       target.tagName === 'INPUT' ||
       target.tagName === 'TEXTAREA' ||
       target.isContentEditable
