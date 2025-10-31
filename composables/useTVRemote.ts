@@ -203,10 +203,6 @@ export const useTVRemote = () => {
 
     // Check if user is typing in an input field
     const target = event.target
-    if (!target || !(target instanceof HTMLElement)) {
-      // If no target or not an HTMLElement, proceed with normal TV remote navigation
-    }
-    
     const isTyping = target instanceof HTMLElement && (
       target.tagName === 'TEXTAREA' ||
       target.isContentEditable ||
