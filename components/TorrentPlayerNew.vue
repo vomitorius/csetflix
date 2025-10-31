@@ -168,22 +168,10 @@ const loadWebtorSDK = () => {
     }
 
     const tryLoadFromLocal = () => {
-      try {
-        // Try to import the local package
-        import('@webtor/embed-sdk-js/dist/index.min.js').then(() => {
-          console.log('✅ Webtor SDK loaded successfully from local package')
-          resolve()
-        }).catch(() => {
-          // Final fallback - create a mock implementation for development
-          console.warn('⚠️ Using iframe fallback since SDK is not available')
-          useFallbackImplementation()
-          resolve()
-        })
-      } catch (error) {
-        console.warn('⚠️ Local package import failed, using fallback')
-        useFallbackImplementation()
-        resolve()
-      }
+      // Since @webtor/embed-sdk-js is removed, go directly to fallback
+      console.warn('⚠️ Using iframe fallback since SDK package is removed')
+      useFallbackImplementation()
+      resolve()
     }
 
     const useFallbackImplementation = () => {
