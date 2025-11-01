@@ -399,6 +399,25 @@ export class NcoreClient {
         console.log('[NcoreClient] Added', torrentData['announce-list'].length, 'tracker tiers')
       }
       
+      // Add public WebTorrent-compatible trackers for Webtor.io compatibility
+      // These trackers are specifically chosen to work with WebTorrent in browsers
+      const publicTrackers = [
+        'wss://tracker.btorrent.xyz',
+        'wss://tracker.openwebtorrent.com',
+        'wss://tracker.webtorrent.io',
+        'wss://tracker.fastcast.nz',
+        'udp://tracker.opentrackr.org:1337/announce',
+        'udp://open.stealth.si:80/announce',
+        'udp://tracker.openbittorrent.com:6969/announce',
+        'udp://exodus.desync.com:6969/announce',
+        'udp://tracker.torrent.eu.org:451/announce'
+      ]
+      
+      for (const tracker of publicTrackers) {
+        magnet += `&tr=${encodeURIComponent(tracker)}`
+      }
+      
+      console.log('[NcoreClient] Added', publicTrackers.length, 'public WebTorrent trackers for Webtor compatibility')
       console.log('[NcoreClient] Magnet link created successfully')
       return magnet
     } catch (error: any) {
